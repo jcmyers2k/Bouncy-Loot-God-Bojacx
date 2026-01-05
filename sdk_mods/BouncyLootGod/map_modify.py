@@ -293,8 +293,8 @@ def modify_opportunity(blg):
     pass
 
 def modify_bunker(blg):
-    if loc_name_to_id["Enemy Bunker: BNK-3R"] not in blg.locations_checked:
-        setup_check_drop(blg, "Enemy Bunker: BNK-3R", behavior_spawn_items=unrealsdk.find_object("Behavior_SpawnItems", "GD_HyperionBunkerBoss.Character.AIDef_BunkerBoss:AIBehaviorProviderDefinition_1.Behavior_SpawnItems_0"))
+    if loc_name_to_id["Enemy: BNK-3R"] not in blg.locations_checked:
+        setup_check_drop(blg, "Enemy: BNK-3R", behavior_spawn_items=unrealsdk.find_object("Behavior_SpawnItems", "GD_HyperionBunkerBoss.Character.AIDef_BunkerBoss:AIBehaviorProviderDefinition_1.Behavior_SpawnItems_0"))
 
 def modify_eridium_blight(blg):
     # kingmong = unrealsdk.find_object("AIPawnBalanceDefinition", "GD_Population_PrimalBeast.Balance.Unique.PawnBalance_PrimalBeast_KingMong")
@@ -322,8 +322,8 @@ def modify_arid_nexus_badlands(blg):
     pass
 
 def modify_vault_of_the_warrior(blg):
-    if loc_name_to_id["Enemy VaultOfTheWarrior: Warrior"] not in blg.locations_checked:
-        setup_check_drop(blg, "Enemy VaultOfTheWarrior: Warrior", behavior_spawn_items=unrealsdk.find_object("Behavior_SpawnItems", "Boss_Volcano_Combat_Monster.TheWorld:PersistentLevel.Main_Sequence.SeqAct_ApplyBehavior_31.Behavior_SpawnItems_6"))
+    if loc_name_to_id["Enemy: Warrior"] not in blg.locations_checked:
+        setup_check_drop(blg, "Enemy: Warrior", behavior_spawn_items=unrealsdk.find_object("Behavior_SpawnItems", "Boss_Volcano_Combat_Monster.TheWorld:PersistentLevel.Main_Sequence.SeqAct_ApplyBehavior_31.Behavior_SpawnItems_6"))
     # setup_check_drop(blg, "Enemy VaultOfTheWarrior: Warrior", behavior_spawn_items=unrealsdk.find_object("Behavior_SpawnItems", "GD_FinalBoss.Character.AIDef_FinalBoss:AIBehaviorProviderDefinition_1.Behavior_SpawnItems_17"))
     # setup_check_drop(blg, "Enemy VaultOfTheWarrior: Warrior 1",behavior_spawn_items=unrealsdk.find_object("Behavior_SpawnItems", "Boss_Volcano_Combat_Monster.TheWorld:PersistentLevel.Main_Sequence.SeqAct_ApplyBehavior_16.Behavior_SpawnItems_6"))
     # setup_check_drop(blg, "Enemy VaultOfTheWarrior: Warrior 3",behavior_spawn_items=unrealsdk.find_object("Behavior_SpawnItems", "Boss_Volcano_Combat_Monster.TheWorld:PersistentLevel.Main_Sequence.SeqAct_ApplyBehavior_59.Behavior_SpawnItems_6"))

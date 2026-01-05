@@ -169,7 +169,7 @@ Init_EnemyExperience_PerPlaythrough")
 
     print(f"Set baserate to\
      {new_value}")
-def set_exp_level_scale(level_difference,which,  new_scale):
+def set_exp_level_scale(level_difference, which,  new_scale):
     gd = unrealsdk.find_object("GlobalsDefinition",
                               "GD_Globals.General.Globals")
     scales = gd.ExpScaleByLevelDifference
