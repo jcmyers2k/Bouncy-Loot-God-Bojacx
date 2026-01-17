@@ -199,11 +199,20 @@ def can_player_receive():
     current_map = get_current_map()
     if current_map in fake_maps:
         return False
+    if pawn.Class.Name != "WillowPlayerPawn":
+        # in vehicle or otherwise not controlling the player directly
+        return False
     if pawn.Location.Z < -180000:
         # not sure how else to detect if you're in the blue respawning zone (HoldingCell)
         return False
-    if get_pc().Pawn.InjuredDeadState != 0:
+
+    if pc.Pawn.InjuredDeadState != 0:
         return False
+
+    if pc.GetExpPoints() > pc.GetExpPointsRequiredForLevel(pc.PlayerReplicationInfo.ExpLevel + 1):
+        # you're over the current amount xp count, allow level up behaviors to happen first
+        return False
+
     # if pc.GFxUIManager.IsBlockingMoviePlaying():
     #     # cutscenes and menus, probably fine without this
     #     print("IsBlockingMoviePlaying")
@@ -252,29 +261,30 @@ def handle_item_received(item_id, is_init=False):
     show_chat_message("Received: " + item_name)
 
     # spawn gear
-    receive_gear_setting = blg.settings.get("receive_gear")
-    
-    if item_id >= 100 and item_id <= 199 and receive_gear_setting != 0: # FIXME: need different way to detect
-        if receive_gear_setting == 1 and item_id % 10 <= 4: # is low rarity
-            spawn_gear(item_id)
-        elif receive_gear_setting == 2:
-            spawn_gear(item_id)
+    receive_gear_setting = blg.settings.get("receive_gear") # FIXME: check setting 
+    spawn_gear(item_name) # TODO: detect if it's actually spawnable first
 
-    # filler gear
-    if item_id >= 1100 and item_id <= 1199:  # FIXME: need different way to detect
-        spawn_gear(item_id - 1000)
+    # if item_id >= 100 and item_id <= 199 and receive_gear_setting != 0
+    #     if receive_gear_setting == 1 and item_id % 10 <= 4: # is low rarity
+    #         spawn_gear(item_id)
+    #     elif receive_gear_setting == 2:
+    #         spawn_gear(item_id)
 
-    # misc. spawn rewards
-    if item_id >= 12 and item_id <= 20:  # FIXME: need different way to detect
-        spawn_gear(item_id)
+    # # filler gear
+    # if item_id >= 1100 and item_id <= 1199:
+    #     spawn_gear(item_id - 1000)
+
+    # # misc. spawn rewards
+    # if item_id >= 12 and item_id <= 20:
+    #     spawn_gear(item_id)
 
     # spawn traps
     if blg.settings.get("spawn_traps") != 0:
         trigger_spawn_trap(item_name)
 
     # mission rewards
-    if item_name.startswith("Reward "):
-        grant_mission_reward(item_name[7:])
+    if item_name.startswith("Reward: "):
+        grant_mission_reward(item_name[8:])
 
     if item_id == item_name_to_id["$100"]:
         get_pc().PlayerReplicationInfo.AddCurrencyOnHand(0, 100)
@@ -527,6 +537,7 @@ def watcher_loop(blg):
         query_deathlink()
 
         if not mod_instance.is_enabled or not blg:
+            show_chat_message("BLG exited.")
             print("Exiting watcher_loop")
             return None  # Break out of the coroutine
 
@@ -885,7 +896,7 @@ def modify_map_area(self, caller: unreal.UObject, function: unreal.UFunction, pa
         check_full_inventory()
         map_name = map_area_to_name.get(new_map_area)
         if not map_name:
-            # TODO: I think we are missing Torgue DLC "kicked out"
+            # TODO: I think we are missing Torgue DLC "kicked out" (or it might just be inside torgue arena ring)
             show_chat_message("Missing map name, please report issue: " + new_map_area)
             map_name = new_map_area # override with internal name
         else:
@@ -1033,7 +1044,7 @@ def complete_mission(self, caller: unreal.UObject, function: unreal.UFunction, p
     caller.Mission.Reward = empty_reward
     caller.Mission.AlternativeReward = empty_reward
 
-    loc_name = "Quest " + mission_ue_str_to_name.get(caller.Mission.Name, "")
+    loc_name = "Quest: " + mission_ue_str_to_name.get(caller.Mission.Name, "")
     loc_id = loc_name_to_id.get(loc_name)
     if loc_id is None:
         print("unknown quest: " + caller.Mission.Name + " " + loc_name)
@@ -1323,7 +1334,10 @@ def use_vending_machine(self, caller: unreal.UObject, function: unreal.UFunction
     if self.FeaturedItem.Class.Name == "WillowWeapon":
         # can't figure out how to display pizza mesh on weapon.
         # and swapping the weapon to an item results in an item that can't be purchased
-        # maybe we could change the lootpool and reroll once?
+        # maybe we could change the lootpool and reroll once? GD_ItemPools_Shop.Items.Shoppool_FeaturedItem 
+        # GD_ItemPools_Shop.HealthShop.HealthShop_FeaturedItem 
+        # GD_ItemPools_Shop.WeaponPools.Shoppool_FeaturedItem_WeaponMachine
+
         w_def = self.FeaturedItem.DefinitionData
         self.FeaturedItem.InitializeFromDefinitionData(
             unrealsdk.make_struct("WeaponDefinitionData",

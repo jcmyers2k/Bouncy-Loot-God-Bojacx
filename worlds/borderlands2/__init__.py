@@ -3,10 +3,12 @@ from typing import List
 from BaseClasses import Item, ItemClassification, Region, Tutorial, LocationProgressType
 from worlds.AutoWorld import WebWorld, World
 from worlds.LauncherComponents import components, Component, launch_subprocess, Type
+from .Rules import set_world_rules, get_level_region_name
 from .Locations import Borderlands2Location, location_data_table, location_name_to_id, location_descriptions, bl2_base_id
+from .Items import Borderlands2Item
 from .Options import Borderlands2Options
 from .Regions import region_data_table
-from .archi_defs import loc_name_to_id, item_id_to_name, gear_data_table, item_name_to_id, item_data_table
+from .archi_defs import loc_name_to_id, item_id_to_name, gear_data_table, item_data_table, max_level, item_name_to_id as item_name_to_raw_id
 import random
 
 
@@ -34,9 +36,6 @@ components.append(Component("Borderlands 2 Client",
                             component_type=Type.CLIENT))
 
 
-class Borderlands2Item(Item):
-    game = "Borderlands 2"
-
 class Borderlands2World(World):
     """
      Borderlands 2 is a looter shooter we all love.
@@ -48,14 +47,22 @@ class Borderlands2World(World):
     options: Borderlands2Options
     location_name_to_id = location_name_to_id
     location_descriptions = location_descriptions
-    item_name_to_id = item_name_to_id
+    item_name_to_id = {name: bl2_base_id + id for name, id in item_name_to_raw_id.items()}
     goal = loc_name_to_id["Enemy: W4R-D3N"]  # without base id
     skill_pts_total = 0
     filler_counter = 0
+    explicit_indirect_conditions = False # testing with this, hopefully can remove it later
 
     item_name_groups = {
         "GrenadeMod": { "Common GrenadeMod", "Uncommon GrenadeMod", "Rare GrenadeMod", "VeryRare GrenadeMod", "Legendary GrenadeMod", "Seraph GrenadeMod", "Rainbow GrenadeMod", "Unique GrenadeMod" },
-        "Shield": { "Common Shield", "Uncommon Shield", "Rare Shield", "VeryRare Shield", "Legendary Shield", "Seraph Shield", "Rainbow Shield", "Unique Shield" }
+        "Shield": { "Common Shield", "Uncommon Shield", "Rare Shield", "VeryRare Shield", "Legendary Shield", "Seraph Shield", "Rainbow Shield", "Unique Shield" },
+        "Pistol": { "Common Pistol", "Uncommon Pistol", "Rare Pistol", "VeryRare Pistol", "E-Tech Pistol", "Legendary Pistol", "Seraph Pistol", "Pearlescent Pistol", "Unique Pistol" },
+        "Shotgun": { "Common Shotgun", "Uncommon Shotgun", "Rare Shotgun", "VeryRare Shotgun", "E-Tech Shotgun", "Legendary Shotgun", "Seraph Shotgun", "Rainbow Shotgun", "Pearlescent Shotgun", "Unique Shotgun" },
+        "SMG": { "Common SMG", "Uncommon SMG", "Rare SMG", "VeryRare SMG", "E-Tech SMG", "Legendary SMG", "Seraph SMG", "Rainbow SMG", "Pearlescent SMG", "Unique SMG" },
+        "SniperRifle": { "Common SniperRifle", "Uncommon SniperRifle", "Rare SniperRifle", "VeryRare SniperRifle", "E-Tech SniperRifle", "Legendary SniperRifle", "Seraph SniperRifle", "Rainbow SniperRifle", "Pearlescent SniperRifle", "Unique SniperRifle" },
+        "AssaultRifle": { "Common AssaultRifle", "Uncommon AssaultRifle", "Rare AssaultRifle", "VeryRare AssaultRifle", "E-Tech AssaultRifle", "Legendary AssaultRifle", "Seraph AssaultRifle", "Rainbow AssaultRifle", "Pearlescent AssaultRifle", "Unique AssaultRifle" },
+        "RocketLauncher": { "Common RocketLauncher", "Uncommon RocketLauncher", "Rare RocketLauncher", "VeryRare RocketLauncher", "E-Tech RocketLauncher", "Legendary RocketLauncher", "Seraph RocketLauncher", "Rainbow RocketLauncher", "Pearlescent RocketLauncher", "Unique RocketLauncher" },
+    
     }
 
     restricted_regions = set()
@@ -64,44 +71,69 @@ class Borderlands2World(World):
         try:
             return self.multiworld.get_entrance(entrance_name, self.player)
         except KeyError:
-            print("couldn't find entrance: " + entrance_name)
+            # print("couldn't find entrance: " + entrance_name)
             return None
 
     def try_get_location(self, loc_name):
         try:
             return self.multiworld.get_location(loc_name, self.player)
         except KeyError:
-            print("couldn't find location: " + loc_name)
+            # print("couldn't find location: " + loc_name)
             return None
 
+    def try_get_region(self, reg_name):
+        try:
+            return self.multiworld.get_region(reg_name, self.player)
+        except KeyError:
+            # print("couldn't find location: " + reg_name)
+            return None
+
+
     def generate_early(self):
-        if self.options.remove_dlc_checks.value == 1:
-            self.restricted_regions.update([
-                "NaturalSelectionAnnex",
-                "FFSIntroSanctuary", "Burrows", "Backburner", "DahlAbandon", "HeliosFallen", "WrithingDeep", "Mt.ScarabResearchCenter", "FFSBossFight",
-                "UnassumingDocks", "FlamerockRefuge", "HatredsShadow", "LairOfInfiniteAgony", "ImmortalWoods", "Forest", "MinesOfAvarice", "MurderlinsTemple", "WingedStorm", "DragonKeep",
-                "BadassCrater", "Beatdown", "TorgueArena", "TorgueArenaRing", "BadassCraterBar", "Forge", "SouthernRaceway", "PyroPetesBar", "Oasis", "HaytersFolly", "Wurmwater", "WashburneRefinery", "Rustyards", "MagnysLighthouse", "LeviathansLair",
-                "HuntersGrotto", "CandlerakksCrag", "ArdortonStation", "ScyllasGrove", "Terminus",
-            ])
+        if self.options.remove_ffs_checks.value == 1:
+            self.restricted_regions.update([region for region in region_data_table if region_data_table[region].dlc_group == "ffs"])
+
+        if self.options.remove_tina_checks.value == 1:
+            self.restricted_regions.update([region for region in region_data_table if region_data_table[region].dlc_group == "tina"])
+
+        if self.options.remove_torgue_checks.value == 1:
+            self.restricted_regions.update([region for region in region_data_table if region_data_table[region].dlc_group == "torgue"])
+
+        if self.options.remove_scarlett_checks.value == 1:
+            self.restricted_regions.update([region for region in region_data_table if region_data_table[region].dlc_group == "scarlett"])
+
+        if self.options.remove_hammerlock_checks.value == 1:
+            self.restricted_regions.update([region for region in region_data_table if region_data_table[region].dlc_group == "hammerlock"])
 
         if self.options.remove_digi_peak_checks.value == 1:
-            self.restricted_regions.update(["DigistructPeak", "DigistructPeakInner"])
+            self.restricted_regions.update([region for region in region_data_table if region_data_table[region].dlc_group == "digi"])
+
+        if self.options.remove_base_game_checks.value == 1:
+            self.restricted_regions.update([region for region in region_data_table if region_data_table[region].dlc_group == "basegame"])
 
         if self.options.remove_headhunter_checks.value == 1:
-            self.restricted_regions.update([
-                "MarcusMercenaryShop", "GluttonyGulch", "RotgutDistillery", "WamBamIsland", "HallowedHollow"
-            ])
+            self.restricted_regions.update([region for region in region_data_table if region_data_table[region].dlc_group == "headhunter"])
+
+        if self.options.remove_specific_region_checks:
+            self.restricted_regions.update(self.options.remove_specific_region_checks.value)
+
+
         # if self.options.remove_raidboss_checks.value == 1:
         #     self.restricted_regions.update(["WingedStorm", "WrithingDeep","TerramorphousPeak"])
 
+        # goal setup
+        goal_name = self.options.goal.value
+        self.goal = loc_name_to_id[goal_name] # without base id
+        self.options.exclude_locations.value.add(goal_name)
+
     def create_item(self, name: str) -> Borderlands2Item:
         item_data = item_data_table[name]
-        kind = item_data.item_kind
-        if name.startswith("Filler"):
-            kind = ItemClassification.filler
-        elif item_data.is_gear and "common" in name.lower():
+        kind_str = item_data.item_kind
+        kind = ItemClassification[kind_str]
+        # if item_data.is_gear and "common" in name.lower():
+        if item_data.is_gear:
             kind = ItemClassification.progression
-        return Borderlands2Item(name, kind, item_name_to_id[name] + bl2_base_id, self.player)
+        return Borderlands2Item(name, kind, self.item_name_to_id[name], self.player) # note: self.item_name_to_id includes bl2_base_id
 
     def create_filler(self) -> Borderlands2Item:
         self.filler_counter += 1
@@ -143,9 +175,6 @@ class Borderlands2World(World):
         item_pool += [self.create_item("3 Skill Points") for _ in range(8)]  # hit 27 at least
         self.skill_pts_total += 3 * 9
 
-        # remove filler gear for now
-        item_pool = [item for item in item_pool if not item.name.startswith("Filler Gear")]
-
         # setup jump checks
         if self.options.jump_checks.value == 0:
             # remove jump check
@@ -164,9 +193,18 @@ class Borderlands2World(World):
             sprints_to_add = self.options.sprint_checks.value - 1
             item_pool += [self.create_item("Progressive Sprint") for _ in range(sprints_to_add)]
 
-        restricted_travel_items = [region_data_table[r].primary_travel_item for r in self.restricted_regions]
+        restricted_travel_items = [region_data_table[r].travel_item_name for r in self.restricted_regions]
         new_pool = []
         for item in item_pool:
+            item_data = item_data_table[item.name]
+
+            # skip filler gear for now
+            if item.name.startswith("Filler Gear"):
+                continue
+            # skip override items (should only be used in yaml)
+            if item.name.startswith("Override"):
+                continue
+
             # skip travel items (entrance locks)
             if self.options.entrance_locks.value == 0 and item.name.startswith("Travel: "):
                 continue
@@ -185,13 +223,8 @@ class Borderlands2World(World):
                     continue
                 if self.options.gear_rarity_item_pool.value <= 1 and item.name.startswith("Seraph"):
                     continue
-                if self.options.gear_rarity_item_pool.value == 0 and item.code - bl2_base_id <= 199 and item.code - bl2_base_id >= 100:
+                if self.options.gear_rarity_item_pool.value == 0 and item.name in gear_data_table:
                     continue
-
-            # edge case: ensure Travel: Terramorphous Peak exists for Terramorphous goal
-            if self.options.goal.value == 3 and item.name == "Travel: Terramorphous Peak":
-                new_pool.append(item)
-                continue
 
             # skip restricted region Travel Items
             if item.name in restricted_travel_items:
@@ -211,29 +244,18 @@ class Borderlands2World(World):
         location_count = len(self.multiworld.get_locations(self.player))
         leftover = location_count - len(item_pool)
         print("Adding Filler Checks: " + str(leftover))
-        for _ in range(leftover - 1):
+        for _ in range(leftover):
             item_pool += [self.create_filler()]
 
         self.multiworld.itempool += item_pool
 
     def create_regions(self) -> None:
-        if self.options.goal.value == 0:
-            goal_name = "Enemy: W4R-D3N"
-        elif self.options.goal.value == 1:
-            goal_name = "Enemy: Saturn"
-        elif self.options.goal.value == 2:
-            goal_name = "Enemy: Warrior"
-        elif self.options.goal.value == 3:
-            goal_name = "Enemy: Terramorphous the Invincible"
-
-        self.goal = loc_name_to_id[goal_name]
-
         loc_dict = {
-            location_name: location_id for location_name, location_id in loc_name_to_id.items()
+            location_name: location_id for location_name, location_id in self.location_name_to_id.items()
         }
 
         # remove goal from locations
-        loc_dict[goal_name] = None
+        # loc_dict[goal_name] = None
 
         # remove symbols
         if self.options.vault_symbols.value == 0:
@@ -300,6 +322,13 @@ class Borderlands2World(World):
         for name, region_data in region_data_table.items():
             region = Region(name, self.player, self.multiworld)
             self.multiworld.regions.append(region)
+            # # attempting to use events for region detection
+            # event_loc = world.try_get_location(f"Story Location - {story_req_reg_name}")
+            # if not event_loc:
+            # event_loc = Borderlands2Location(self.player, f"Story Location - {name}", None, region)
+            # event_loc.place_locked_item(Borderlands2Item(f"Story Reached {name}", ItemClassification.progression, None, self.player))
+            # region.locations.append(event_loc)
+
 
         # connect regions
         for name, region_data in region_data_table.items():
@@ -322,16 +351,48 @@ class Borderlands2World(World):
             region = self.multiworld.get_region(region_name, self.player)
             region.add_locations({name: addr}, Borderlands2Location)
 
-        # setup victory condition (as "event" with None address/code)
-        v_region_name = location_data_table[goal_name].region
-        victory_region = self.multiworld.get_region(v_region_name, self.player)
-        victory_location = Borderlands2Location(self.player, "Victory Location", None, victory_region)
-        victory_item = Borderlands2Item("Victory: " + goal_name, ItemClassification.progression, None, self.player)
-        victory_location.place_locked_item(victory_item)
-        victory_region.locations.append(victory_location)
+        # create level regions
+        menu_reg = self.multiworld.get_region("Menu", self.player)
+        prev_reg = menu_reg
+        for i in range(max_level + 1):
+            level_reg_name = get_level_region_name(i)
+            if self.try_get_region(level_reg_name):
+                # region is not new, skip
+                continue
+            level_region = Region(level_reg_name, self.player, self.multiworld)
+            self.multiworld.regions.append(level_region)
+            prev_reg.add_exits({level_reg_name: f"{prev_reg.name} to {level_reg_name}"})
+            print(f"{prev_reg.name} to {level_reg_name}")
+            prev_reg = level_region
 
+        # level_0_reg = Region("Level 0", self.player, self.multiworld) # pre-damage region
+        # self.multiworld.regions.append(level_0_reg)
+        # menu_reg = self.multiworld.get_region("Menu", self.player)
+        # menu_reg.add_exits({"Level 0": "Menu to Level 0"}) # no rule associated
+        # level_groups = [f"Level {i}-{i+4}" for i in range(1, 31, 5)] # stratify by 5s
+
+        # for i, reg_name in enumerate(level_groups):
+        #     print(reg_name)
+        #     level_region = Region(reg_name, self.player, self.multiworld)
+        #     self.multiworld.regions.append(level_region)
+        #     if i == 0:
+        #         continue
+        #     prev_reg_name = level_groups[i-1]
+        #     prev_reg = self.multiworld.get_region(prev_reg_name, self.player)
+        #     prev_reg.add_exits({reg_name: f"{prev_reg_name} to {reg_name}"})
+        # level_0_reg.add_exits({"Level 1-5": "Level 0 to Level 1-5"})
+
+        # setup victory condition (as "event" with None address/code)
+        # v_region_name = location_data_table[goal_name].region
+        # victory_region = self.multiworld.get_region(v_region_name, self.player)
+        # victory_location = Borderlands2Location(self.player, "Victory Location", None, victory_region)
+        # victory_item = Borderlands2Item("Victory: " + goal_name, ItemClassification.progression, None, self.player)
+        # victory_location.place_locked_item(victory_item)
+        # victory_region.locations.append(victory_location)
+
+        goal_name = self.options.goal.value
         self.multiworld.completion_condition[self.player] = lambda state: (
-            state.has("Victory: " + goal_name, self.player)
+            state.can_reach_location(goal_name, self.player)
         )
 
         from Utils import visualize_regions
@@ -342,8 +403,7 @@ class Borderlands2World(World):
         return "$100"
 
     def set_rules(self) -> None:
-        from .Rules import set_rules
-        set_rules(self)
+        set_world_rules(self)
 
     # def pre_fill(self) -> None:
     #     pass
