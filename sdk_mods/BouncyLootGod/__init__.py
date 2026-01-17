@@ -1429,6 +1429,8 @@ def use_black_market(self, caller: unreal.UObject, function: unreal.UFunction, p
     item_def.BalanceDefinition.InventoryDefinition.BaseRarity.BaseValueConstant = 500.0  # teal, like mission/pearl
     item_def.BalanceDefinition.InventoryDefinition.UIMeshRotation = unrealsdk.make_struct("Rotator", Pitch=-134, Yaw=-14219, Roll=-7164)
 
+
+
     print("UseObject")
     print(self.Class.Name)
     print(self.ShopType)

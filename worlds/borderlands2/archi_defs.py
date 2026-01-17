@@ -1566,7 +1566,7 @@ loc_data_table = {
     "Chest Wildlife Preserve: Dockyard":                             BL2ArchiData("WildlifeExploitationPreserve", 0),
     "Chest Wildlife Preserve: Loot Midget Room":                     BL2ArchiData("WildlifeExploitationPreserve", 0),
     "Chest Wildlife Preserve: Observation Wing #2":                  BL2ArchiData("WildlifeExploitationPreserve", 0),
-    "Chest Wildlife Preserve: Mordy's Secrest Stash":                BL2ArchiData("WildlifeExploitationPreserve", 0, jump_z_req=629),
+    "Chest Wildlife Preserve: Mordy's Secret Stash":                BL2ArchiData("WildlifeExploitationPreserve", 0, jump_z_req=629),
     "Chest Tundra Express: Mount Molehill Mine Top":                 BL2ArchiData("TundraExpress", 0, jump_z_req=629),
     "Chest Tundra Express: Varkid Ranch Observatory":                BL2ArchiData("TundraExpress", 0),
     "Chest Tundra Express: South Western Chest":                     BL2ArchiData("TundraExpress", 0),
@@ -1820,6 +1820,8 @@ loc_data_table = {
     "Chest Digistruct Peak Inner: Chest #1":                          BL2ArchiData("DigistructPeakInner", 30),
     "Chest Digistruct Peak Inner: Chest #4":                          BL2ArchiData("DigistructPeakInner", 30),
     "Chest Digistruct Peak Inner: Chest #9":                          BL2ArchiData("DigistructPeakInner", 30),
+
+    "Backpack SDU (1)":                                               BL2ArchiData("Sanctuary", 0)
 
 }
 
