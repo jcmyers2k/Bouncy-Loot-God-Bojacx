@@ -1370,7 +1370,7 @@ loc_data_table = {
     "Challenge Assault Rifle: ...This Is My Gun":                           BL2ArchiData("SouthernShelf", 0, req_groups=["Assault Rifle"]),
     "Challenge Assault Rifle: This Is My Rifle...":                         BL2ArchiData("SouthernShelf", 0, req_groups=["Assault Rifle"]),
     "Challenge Assault Rifle: Aggravated Assault":                          BL2ArchiData("SouthernShelf", 0, req_groups=["Assault Rifle"]),
-    "Challenge Assault Rifle: Crouching Tiger, Hidden Assault Rifle":       BL2ArchiData("SouthernShelf", 0, crouch_req=True, req_groups=["Assault Rifle"]),
+    "Challenge Assault Rifle: Crouching Tiger, Hidden Assault Rifle":       BL2ArchiData("SouthernShelf", 0, req_items=["Crouch"], req_groups=["Assault Rifle"]),
     "Challenge Assault Rifle: From My Cold, Dead Hands":                    BL2ArchiData("SouthernShelf", 0, req_groups=["Assault Rifle"]),
     "Challenge Launcher: Rocket and Roll":                                 BL2ArchiData("TundraExpress", 0, req_groups=["Launcher"]),
     "Challenge Launcher: Catch-a-Rocket!":                                 BL2ArchiData("TundraExpress", 0, req_groups=["Launcher"]),
@@ -1524,7 +1524,7 @@ loc_data_table = {
     "Chest Caustic Caverns: Treasure Chest":                         BL2ArchiData("CausticCaverns", 0),
     "Chest Caustic Caverns: Nether Hive":                            BL2ArchiData("CausticCaverns", 0),
     "Chest Caustic Caverns: Infested Warehouse":                     BL2ArchiData("CausticCaverns", 0),
-    "Chest Southern Shelf: Boom Bewm Elevator":                      BL2ArchiData("SouthernShelf", 0, crouch_req=True), # crouch just for zer0 and krieg
+    "Chest Southern Shelf: Boom Bewm Elevator":                      BL2ArchiData("SouthernShelf", 0, req_items=["Crouch"]), # crouch just for zer0 and krieg
     "Chest Southern Shelf: Gateway Harbor Shipwreck":                BL2ArchiData("SouthernShelf", 0),
     "Chest Southern Shelf: Captain Flynt's Chest":                   BL2ArchiData("SouthernShelf", 0),
     "Chest Southern Shelf: Roaring Dragon Camp":                     BL2ArchiData("SouthernShelf", 0),
