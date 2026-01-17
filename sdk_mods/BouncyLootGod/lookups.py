@@ -463,6 +463,7 @@ vending_machine_position_to_name = {
     # "4769,-3311":         "Vending DigistructInner Area of Anguish: Ammo Dump",
     # "4242,-3312":         "Vending DigistructInner Area of Anguish: Zed's Meds",
     # "15713,13777":        "Vending DigistructInner Tower of Torment: Ammo Dump",
+    "7254,5342":            "Black Market"
 }
 
 

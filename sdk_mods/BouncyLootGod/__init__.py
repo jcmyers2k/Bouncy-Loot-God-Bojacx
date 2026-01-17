@@ -13,6 +13,7 @@ from math import sqrt
 from mods_base import build_mod, ButtonOption, SliderOption, get_pc, hook, ENGINE, ObjectFlags
 from ui_utils import show_chat_message, show_hud_message
 from unrealsdk.hooks import Type, Block, prevent_hooking_direct_calls
+from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
 
 try:
     assert __import__("coroutines").__version_info__ >= (1, 1), "Please install coroutines"
@@ -35,7 +36,7 @@ if __name__ == "builtins":
     print("running from console, attempting to reload modules")
     get_pc().ConsoleCommand("rlm BouncyLootGod.*")
 
-from BouncyLootGod.archi_defs import item_name_to_id, item_id_to_name, loc_name_to_id, legacy_gear_kind_to_id
+from BouncyLootGod.archi_defs import item_name_to_id, item_id_to_name,loc_id_to_name, loc_name_to_id, legacy_gear_kind_to_id
 from BouncyLootGod.lookups import vault_symbol_pathname_to_name, vending_machine_position_to_name, enemy_class_to_loc_name
 from BouncyLootGod.loot_pools import spawn_gear, spawn_gear_from_pool_name, get_or_create_package
 from BouncyLootGod.map_modify import map_modifications, map_area_to_name, place_mesh_object, setup_generic_mob_drops
@@ -1381,18 +1382,43 @@ def use_black_market(self, caller: unreal.UObject, function: unreal.UFunction, p
 
     if blg.settings.get("black_market") == 0:
         return
+    pos_str = get_vending_machine_pos_str(self)
+    print(pos_str)
+    blg.active_vend = self
+    blg.active_vend_price = self.FixedFeaturedItemCost
+    self.FixedFeaturedItemCost = 10
+    if self.FixedFeaturedItemCost == 10:
+        print("Black Market cost change!")
+    print(self.DefinitionData.BlackMarketName)
 
-    for black_market_check in loc_name_to_id:
-        if loc_name_to_id[black_market_check].startswith("Black Market"):
-            loc_id = loc_name_to_id.get(black_market_check)
-            if loc_id is None:
-                return
+    print(self.DefinitionData.ItemOfTheDay.Class.Name)
+    sample_def = unrealsdk.find_object("BlackMarketUpgradeDefinition","GD_BlackMarket.Upgrades_Ammo.Upgrades_Backpack")
+    item_def = unrealsdk.construct_object("BlackMarketUpgradeDefinition",blg.package,"archi_venditem_def", 0, sample_def)
 
+    try:
+        pizza_mesh = unrealsdk.find_object("StaticMesh", "Prop_Details.Meshes.PizzaBoxWhole")
+    except:
+        unrealsdk.load_package("SanctuaryAir_Dynamic")
+        pizza_mesh = unrealsdk.find_object("StaticMesh", "Prop_Details.Meshes.PizzaBoxWhole")
+
+    item_def.BalanceDefinition.InventoryDefinition.NonCompositeStaticMesh = pizza_mesh
+    item_def.BalanceDefinition.InventoryDefinition.ItemName = "AP Check: "
+    item_def.BalanceDefinition.InventoryDefinition.bItemNameIsFullName = True
+    item_def.BalanceDefinition.InventoryDefinition.CustomPresentations = []
+    item_def.BalanceDefinition.InventoryDefinition.bPlayerUseItemOnPickup = True  # allows pickup with full inventory (i think)
+    item_def.BalanceDefinition.InventoryDefinition.bIsConsumable = True
+    try:
+        item_def.BalanceDefinition.InventoryDefinition.OverrideMaterial = unrealsdk.find_object("MaterialInstanceConstant",
+                                                          'Prop_Details.Materials.Mati_PizzaBox')
+    except:
+        item_def.BalanceDefinition.InventoryDefinition.OverrideMaterial = None
+    item_def.BalanceDefinition.InventoryDefinition.BaseRarity.BaseValueConstant = 500.0  # teal, like mission/pearl
+    item_def.BalanceDefinition.InventoryDefinition.UIMeshRotation = unrealsdk.make_struct("Rotator", Pitch=-134, Yaw=-14219, Roll=-7164)
 
     print("UseObject")
     print(self.Class.Name)
     print(self.ShopType)
-    print(self.FeaturedItem.Class.Name)
+
 
     print(dir(unrealsdk.find_enum("EShopType")))
 

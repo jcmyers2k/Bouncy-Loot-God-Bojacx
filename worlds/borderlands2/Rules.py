@@ -66,9 +66,11 @@ def set_rules(world: Borderlands2World):
     try_add_rule(world.try_get_location("Challenge Vehicles: Turret Syndrome"),
         lambda state: state.has("Vehicle Fire", world.player))
 
-    #need melee to break vines to Hector
+    #need melee to break vines to Hector, melee to break minecraft blocks
     try_add_rule(world.try_get_entrance("Mt.ScarabResearchCenter to FFSBossFight"),
              lambda state: state.has("Melee", world.player))
+    try_add_rule(world.try_get_location("Enemy: Badass Creeper"),
+                 lambda state: state.has("Melee",world.player))
 
     try_add_rule(world.try_get_entrance("CandlerakksCrag to Terminus"),
             lambda state: state.has("Crouch", world.player))
