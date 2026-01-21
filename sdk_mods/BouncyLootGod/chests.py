@@ -42,7 +42,7 @@ chest_dict = {
 "grass_lynchwood_p~30406,-28958":             "Chest Lynchwood: Gunslinger Top Trunk",
 "grass_lynchwood_p~-5662,6155":               "Chest Lynchwood: Outskirts Trunk",
 "grass_lynchwood_p~34727,-32639":             "Chest Lynchwood: Gunslinger Lower Trunk",
-"grass_p~17218,-6817":                        "Chest Highlands: Blake Bridge Fall",
+"grass_p~57446,25315":                        "Chest Highlands: Blake Bridge Fall",
 "hypinterlude_p~47838,44612":                 "Chest FriendshipGulag: Carson Cell",
 "hypinterlude_p~44794,39719":                 "Chest FriendshipGulag: Gulag Awning",
 "ice_p~-24415,20733":                         "Chest ThreeHornsDivide: Windbreak Car Trunk",
@@ -302,7 +302,7 @@ chest_dict = {
 "xmas_p~-36571,5441":                         "Chest MarcusMercenaryShop: Frozen Waterfall",
 "xmas_p~-18526,1694":                         "Chest MarcusMercenaryShop: Waystation Cliffside",
 "xmas_p~-14731,-12659":                       "Chest MarcusMercenaryShop: Station Rooftop",
-"xmas_p~-18217,7577":                         "Chest MarcusMercenaryShop: Waystation Rooftop",
+# "xmas_p~-18217,7577":                         "Chest MarcusMercenaryShop: Waystation Rooftop", # this chest moves and disappears
 "testingzone_p~12128,9327":                   "Chest DigistructPeakInner: Chest #7",
 "testingzone_p~30244,-4203":                  "Chest DigistructPeakInner: Chest #6",
 "testingzone_p~12357,9759":                   "Chest DigistructPeakInner: Chest #8",

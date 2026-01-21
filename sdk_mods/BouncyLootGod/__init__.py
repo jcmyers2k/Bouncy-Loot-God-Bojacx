@@ -31,7 +31,7 @@ import json
 import datetime
 
 
-mod_version = "0.4"
+mod_version = "0.5"
 if __name__ == "builtins":
     print("running from console, attempting to reload modules")
     get_pc().ConsoleCommand("rlm BouncyLootGod.*")
@@ -41,9 +41,9 @@ from BouncyLootGod.lookups import vault_symbol_pathname_to_name, vending_machine
 from BouncyLootGod.loot_pools import spawn_gear, spawn_gear_from_pool_name, get_or_create_package
 from BouncyLootGod.map_modify import map_modifications, map_area_to_name, place_mesh_object, setup_generic_mob_drops
 from BouncyLootGod.oob import get_loc_in_front_of_player
-from BouncyLootGod.rarity import get_gear_loc_id, can_gear_loc_id_be_equipped, can_inv_item_be_equipped, get_gear_kind
-from BouncyLootGod.entrances import entrance_to_req_areas
-from BouncyLootGod.traps import trigger_spawn_trap
+from BouncyLootGod.rarity import get_gear_item_id, get_gear_loc_id, can_gear_item_id_be_equipped, can_inv_item_be_equipped, get_gear_kind
+from BouncyLootGod.entrances import entrance_to_req_areas, travel_targets
+from BouncyLootGod.traps import spawn_at_dist, trigger_spawn_trap
 from BouncyLootGod.missions import grant_mission_reward, mission_ue_str_to_name
 from BouncyLootGod.challenges import challenge_dict, reveal_annoying_challenges
 from BouncyLootGod.chests import chest_dict
@@ -63,6 +63,7 @@ class BLGGlobals:
     sock = None
     is_sock_connected = False
     is_archi_connected = False
+    has_shutdown = False
     # server setup:
     # (BL2 + this mod) <=====> (Socket Server + Archi Launcher BL 2 Client) <=====> (server/archipelago.gg)
     #             is_sock_connected                                   is_archi_connected
@@ -261,22 +262,14 @@ def handle_item_received(item_id, is_init=False):
     show_chat_message("Received: " + item_name)
 
     # spawn gear
-    receive_gear_setting = blg.settings.get("receive_gear") # FIXME: check setting 
-    spawn_gear(item_name) # TODO: detect if it's actually spawnable first
-
-    # if item_id >= 100 and item_id <= 199 and receive_gear_setting != 0
-    #     if receive_gear_setting == 1 and item_id % 10 <= 4: # is low rarity
-    #         spawn_gear(item_id)
-    #     elif receive_gear_setting == 2:
-    #         spawn_gear(item_id)
-
-    # # filler gear
-    # if item_id >= 1100 and item_id <= 1199:
-    #     spawn_gear(item_id - 1000)
-
-    # # misc. spawn rewards
-    # if item_id >= 12 and item_id <= 20:
-    #     spawn_gear(item_id)
+    receive_gear_setting = blg.settings.get("receive_gear")
+    if item_name.startswith("Filler Gear: "):
+        spawn_gear(item_name[13:])
+    elif item_name in gear_kinds and receive_gear_setting != 0:
+        spawn_gear(item_name)
+    else:
+        # TODO: detect if it's actually spawnable first (candy, etc.)
+        spawn_gear(item_name)
 
     # spawn traps
     if blg.settings.get("spawn_traps") != 0:
@@ -292,6 +285,10 @@ def handle_item_received(item_id, is_init=False):
         get_pc().PlayerReplicationInfo.AddCurrencyOnHand(1, 10)
     elif item_id == item_name_to_id["10% Exp"]:
         get_pc().ExpEarn(int(get_exp_for_current_level() * 0.1), 0)
+    elif item_id == item_name_to_id["Override Level 15"]:
+        get_pc().ExpEarn(get_pc().GetExpPointsRequiredForLevel(15), 0)
+    elif item_id == item_name_to_id["Override Level 30"]:
+        get_pc().ExpEarn(get_pc().GetExpPointsRequiredForLevel(30), 0)
 
     # not init, do write.
     with open(blg.items_filepath, 'a') as f:
@@ -536,8 +533,7 @@ def watcher_loop(blg):
         push_locations()
         query_deathlink()
 
-        if not mod_instance.is_enabled or not blg:
-            show_chat_message("BLG exited.")
+        if not mod_instance.is_enabled or not blg or blg.has_shutdown:
             print("Exiting watcher_loop")
             return None  # Break out of the coroutine
 
@@ -589,7 +585,8 @@ def on_equipped(self, caller: unreal.UObject, function: unreal.UFunction, params
         blg.locs_to_send.append(loc_id)
         push_locations()
 
-    if can_gear_loc_id_be_equipped(blg, loc_id):
+    item_id = get_gear_item_id(caller.Inv)
+    if can_gear_item_id_be_equipped(blg, item_id):
         # allow equip
         return
     else:
@@ -849,8 +846,8 @@ def disconnect_socket():
         # blg.is_archi_connected = False
         if len(blg.locs_to_send) > 0:
             show_chat_message("outstanding locations: ", blg.locs_to_send)
-            # TODO: maybe should handle this better
-
+            # TODO: maybe should handle this better, player may have completed a one-time location
+        blg.has_shutdown = True
         blg = BLGGlobals()  # reset
         show_chat_message("disconnected from socket server")
     except socket.error as error:
@@ -1000,6 +997,14 @@ def duck_pressed(self, caller: unreal.UObject, function: unreal.UFunction, param
     # spawn_gear("VeryRare SMG")
     # spawn_gear("Legendary RocketLauncher")
     # spawn_gear("Unique Pistol")
+    # popfactory = unrealsdk.find_object("PopulationFactoryBalancedAIPawn", "GD_SarcasticSlab.Balance.PopDef_SarcasticSlab:PopulationFactoryBalancedAIPawn_0")
+    # spawn_at_dist(popfactory, dist=1000)
+    # spawn_at_dist(popfactory, dist=-1000)
+
+    # gameinfo = unrealsdk.find_all("WillowCoopGameInfo")[-1]
+    # gameinfo.TravelToStation(unrealsdk.find_object("FastTravelStationDefinition", "GD_FastTravelStations.Zone2.Grass_A"))
+
+
     if not blg.has_item("Crouch"):
         show_chat_message("crouch disabled!")
         return Block
@@ -1101,8 +1106,11 @@ def leveled_up(self, caller: unreal.UObject, function: unreal.UFunction, params:
     level = get_pc().PlayerReplicationInfo.ExpLevel
     # print("level")
     # print(loc_name_to_id["Level " + str(level)])
-    blg.locs_to_send.append(loc_name_to_id["Level " + str(level)])
-    push_locations()
+    level_key = "Level " + str(level)
+    loc_id = loc_name_to_id.get(level_key)
+    if loc_id:
+        blg.locs_to_send.append(loc_id)
+        push_locations()
 
 @hook("WillowGame.WillowInventoryManager:SetWeaponReadyMax")
 def set_weapon_ready_max(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
@@ -1199,7 +1207,7 @@ def test_btn(ButtonInfo):
     show_chat_message("is_archi_connected: " + str(blg.is_archi_connected) + " is_sock_connected: " + str(blg.is_sock_connected))
 
     dist = 0
-    for pool_name in legacy_gear_kind_to_id.keys():
+    for pool_name in gear_kinds.keys():
         spawn_gear(pool_name, dist, dist)
         dist += 50
 
@@ -1249,7 +1257,6 @@ def initiate_travel(self, caller: unreal.UObject, function: unreal.UFunction, pa
     # check for setting
     # print("InitiateTravel")
     station_name = caller.StationDefinition.Name
-    # print(station_name)
     # log_to_file("InitiateTravel: " + station_name)
     req_areas = entrance_to_req_areas.get(station_name)
     if blg.settings.get("entrance_locks", 0) == 0:
@@ -1597,6 +1604,26 @@ def can_upgrade_skill(self, caller: unreal.UObject, function: unreal.UFunction, 
 #         self.TravelToStation(caller)
 #     return Block
 
+@hook("WillowGame.TextChatGFxMovie:AddChatMessage")
+def add_chat_message(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    msg = caller.msg[0:2].lower() + caller.msg[2:]
+    if msg.startswith("/travel") or msg.startswith("travel"):
+        travel_arg = msg.replace(":", "").split("travel ")[-1].strip()
+        travel_item_name = f"Travel: {travel_arg}"
+        if travel_arg == "Torgue Arena TAS" or travel_arg == "Torgue Arena Ring":
+            travel_item_name = "Travel: Torgue Arena"
+        item_id = item_name_to_id.get(travel_item_name)
+        if not item_id:
+            show_chat_message(f"unrecognized location: {travel_arg}")
+            return
+        if not blg.has_item(travel_item_name):
+            show_chat_message(f"Travel item required: {travel_item_name}")
+            return
+
+        gameinfo = unrealsdk.find_all("WillowCoopGameInfo")[-1]
+        gameinfo.TravelToStation(unrealsdk.find_object("Object", travel_targets[travel_arg]))
+
+
 
 
 mod_instance = build_mod(
@@ -1643,6 +1670,7 @@ mod_instance = build_mod(
         use_chest,
         can_upgrade_skill,
         # TravelToStation,
+        add_chat_message,
     ]
 )
 

@@ -7,7 +7,7 @@ Borderlands 2:
   goal: "Enemy: Piston"
   delete_starting_gear: delete
   gear_rarity_item_pool: all
-  receive_gear: receive_all
+  receive_gear: receive
   vault_symbols: all
   vending_machines: all
   entrance_locks: all
@@ -44,6 +44,5 @@ Borderlands 2:
   start_inventory:
     Override Level 15: 1
   start_inventory_from_pool:
-    "10% Exp": 150
     "Travel: Badass Crater": 1
     Melee: 0

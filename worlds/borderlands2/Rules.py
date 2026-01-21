@@ -50,6 +50,8 @@ def amt_jump_checks_needed(world, jump_z_req):
 def get_level_region_name(level):
     if level == 0:
         return "Level 0"
+    if level > 30:
+        return "Level 31+"
     start = ((level - 1) // 5) * 5 + 1
     end = start + 4
     return f"Level {start}-{end}"
@@ -123,6 +125,7 @@ def set_world_rules(world: Borderlands2World):
             try_add_rule(loc, lambda state, lr=level_reg_name: state.can_reach_region(lr, world.player))
 
 
+    # TODO: I think this could be set up as events instead of regions, had other issues when trying it the first time
     # level entrances can_reach rules
     level_entrance_rules = {
         "Level 1-5 to Level 6-10": ["SouthernShelf", "SouthernShelfBay"],
@@ -136,6 +139,7 @@ def set_world_rules(world: Borderlands2World):
                                        "PyroPetesBar", "Forge", "MagnysLighthouse", "LeviathansLair",
                                       ],
         "Level 21-25 to Level 26-30": ["Lynchwood", "Bunker", "EridiumBlight", "SawtoothCauldron"],
+        "Level 26-30 to Level 31+": ["VaultOfTheWarrior"],
     }
 
     for entrance_name, regions in level_entrance_rules.items():
@@ -158,7 +162,7 @@ def set_world_rules(world: Borderlands2World):
         lambda state: state.has_all(["Melee", "Common Pistol", "Common Shield", "Common Shotgun", "Uncommon Pistol"], world.player))
 
 
-    # region connection rules
+    # map region connection rules
     if world.options.entrance_locks.value == 1:
         for name, region_data in region_data_table.items():
             region = world.multiworld.get_region(name, world.player)
@@ -203,6 +207,10 @@ def set_world_rules(world: Borderlands2World):
     try_add_rule(world.try_get_entrance("CandlerakksCrag to Terminus"),
         lambda state: state.has("Crouch", world.player))
 
+    # force player to be able to re-reach sanctuary before being able to make it disappear TODO: maybe put this behind a setting in the future
+    try_add_rule(world.try_get_entrance("TundraExpress to EndOfTheLine"),
+        lambda state: state.has_all(["Travel: The Fridge", "Travel: Highlands Outwash", "Travel: Highlands"], world.player))
+
     if world.options.jump_checks.value > 0:
         try_add_rule(world.try_get_entrance("BadassCrater to TorgueArena"),
             lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 490)))
@@ -222,8 +230,10 @@ def set_world_rules(world: Borderlands2World):
         gear_to_rewards[data.associated_gear].append("Reward: " + quest_name)
 
     for gear_name in gear_data_table:
-        # same item grants
-        try_add_rule(world.try_get_location(gear_name), lambda state, gear_item=gear_name: state.has(gear_item, world.player), combine="or")
+        # same item grants location
+        if world.options.receive_gear.value != 0:
+            try_add_rule(world.try_get_location(gear_name), lambda state, gear_item=gear_name: state.has(gear_item, world.player), combine="or")
+        # associated reward grants location
         rewards = gear_to_rewards.get(gear_name, [])
         for reward in rewards:
             try_add_rule(world.try_get_location(gear_name), lambda state, r=reward: state.has(r, world.player), combine="or")
