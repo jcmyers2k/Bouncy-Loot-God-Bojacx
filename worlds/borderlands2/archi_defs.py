@@ -705,7 +705,7 @@ loc_data_table = {
     "Symbol ThreeHornsDivide: Drydocks Corner":              BL2ArchiData("ThreeHornsDivide", 7),
     "Symbol ThreeHornsDivide: Billboard":                    BL2ArchiData("ThreeHornsDivide", 7, jump_z_req=629),
     "Symbol ThreeHornsDivide: Windbreak Wall":               BL2ArchiData("ThreeHornsDivide", 7),
-    "Symbol Dust: Speedway Wall":                            BL2ArchiData("Dust", 9),
+    "Symbol Dust: Speedway Wall":                            BL2ArchiData("Dust", 9, other_req_regions=["Highlands"]),
     "Symbol Dust: Buzzard Pad":                              BL2ArchiData("Dust", 9),
     "Symbol Dust: Moonshiner Lid":                           BL2ArchiData("Dust", 9, jump_z_req=629),
     "Symbol CausticCaverns: Gravestone Feature":             BL2ArchiData("CausticCaverns", 16),
@@ -1214,7 +1214,7 @@ loc_data_table = {
     "Challenge Combat: Afternoon Delight":                                 BL2ArchiData("SouthernShelf", 1),
     "Challenge Combat: ...I Got to Boogie":                                BL2ArchiData("SouthernShelf", 1),
     "Challenge Combat: Critical Acclaim":                                  BL2ArchiData("SouthernShelf", 1),
-    "Challenge Combat: ...To Pay the Bills":                               BL2ArchiData("SouthernShelf", 1, req_items=["3 Skill Points (Progression)"]),
+    "Challenge Combat: ...To Pay the Bills":                               BL2ArchiData("SouthernShelf", 1, req_items=["3 Skill Points (p)"]),
     "Challenge Combat: Gun Slinger":                                       BL2ArchiData("SouthernShelf", 1, req_items=["Common Pistol"]),
     "Challenge Combat: Boomerbang":                                        BL2ArchiData("SouthernShelf", 1, req_items=["Common Pistol"]),
     "Challenge Grenade: Pull the Pin":                                     BL2ArchiData("SouthernShelf", 1, req_groups=["GrenadeMod"]),
@@ -1295,7 +1295,7 @@ loc_data_table = {
     "Challenge ThreeHornsDivide: Cult of the Vault":                       BL2ArchiData("ThreeHornsDivide", 7, jump_z_req=629),
     "Challenge Dust: I've Got a Crush on You":                             BL2ArchiData("Dust", 15, coop_type=1),
     "Challenge Dust: The Van Is Damned":                                   BL2ArchiData("Dust", 15, jump_z_req=629),
-    "Challenge Dust: If You're Not First, You're Last":                    BL2ArchiData("Dust", 15),
+    "Challenge Dust: If You're Not First, You're Last":                    BL2ArchiData("Dust", 15, other_req_regions=["Highlands"]),
     "Challenge Dust: Cult of the Vault":                                   BL2ArchiData("Dust", 15),
     "Challenge HolySpirits: Cult of the Vault":                            BL2ArchiData("HolySpirits", 18),
     "Challenge Lynchwood: Duel of Death":                                  BL2ArchiData("Lynchwood", 24, coop_type=1),
@@ -1342,7 +1342,7 @@ loc_data_table = {
     "Challenge Loot: Gun Runner":                                          BL2ArchiData("Menu", 3),
     "Challenge Melee: Fisticuffs!":                                        BL2ArchiData("Menu", 1, req_items=["Melee"]),
     "Challenge Melee: A Squall of Violence":                               BL2ArchiData("Menu", 1, req_items=["Melee"]),
-    "Challenge Misc: Yo Dawg, I Heard You Like Challenges":                BL2ArchiData("Menu", 3),
+    "Challenge Misc: Yo Dawg, I Heard You Like Challenges":                BL2ArchiData("Menu", 11),
     "Challenge Misc: JEEEEENKINSSSSSS!!!":                                 BL2ArchiData("WildlifeExploitationPreserve", 19),
     "Challenge Misc: Compl33tionist":                                      BL2ArchiData("Sanctuary", 7),
     "Challenge Misc: Sidejacked":                                          BL2ArchiData("Sanctuary", 7),
@@ -1568,7 +1568,7 @@ loc_data_table = {
     "Chest WildlifePreserve: Dockyard":                             BL2ArchiData("WildlifeExploitationPreserve", 19),
     "Chest WildlifePreserve: Loot Midget Room":                     BL2ArchiData("WildlifeExploitationPreserve", 19),
     "Chest WildlifePreserve: Observation Wing #2":                  BL2ArchiData("WildlifeExploitationPreserve", 19),
-    "Chest WildlifePreserve: Mordy's Secrest Stash":                BL2ArchiData("WildlifeExploitationPreserve", 19, jump_z_req=629),
+    "Chest WildlifePreserve: Mordy's Secret Stash":                 BL2ArchiData("WildlifeExploitationPreserve", 19, jump_z_req=629),
     "Chest TundraExpress: Mount Molehill Mine Top":                 BL2ArchiData("TundraExpress", 13, jump_z_req=629),
     "Chest TundraExpress: Varkid Ranch Observatory":                BL2ArchiData("TundraExpress", 13),
     "Chest TundraExpress: South Western Chest":                     BL2ArchiData("TundraExpress", 13),
@@ -1827,7 +1827,7 @@ loc_data_table = {
 
 item_data_table = {
     "3 Skill Points":                              BL2ArchiData("", 0),
-    "3 Skill Points (Progression)":                BL2ArchiData("", 0, item_kind=progression),
+    "3 Skill Points (p)":                          BL2ArchiData("", 0, item_kind=progression),
     "Progressive Money Cap":                       BL2ArchiData("", 0, item_kind=progression),
     "Weapon Slot":                                 BL2ArchiData("", 0, item_kind=useful),
     "$100":                                        BL2ArchiData("", 0),
@@ -1945,6 +1945,17 @@ item_data_table = {
     # Option Overrides
     "Override Level 15":                           BL2ArchiData("", 0, item_kind=progression),
     "Override Level 30":                           BL2ArchiData("", 0, item_kind=progression),
+
+    # Black Market SDUs
+    "Max Ammo Pistol":                             BL2ArchiData("", 0, item_kind=filler),
+    "Max Ammo Shotgun":                            BL2ArchiData("", 0, item_kind=filler),
+    "Max Ammo SMG":                                BL2ArchiData("", 0, item_kind=filler),
+    "Max Ammo SniperRifle":                        BL2ArchiData("", 0, item_kind=filler),
+    "Max Ammo AssaultRifle":                       BL2ArchiData("", 0, item_kind=filler),
+    "Max Ammo RocketLauncher":                     BL2ArchiData("", 0, item_kind=filler),
+    "Max Grenade Count":                           BL2ArchiData("", 0, item_kind=filler),
+    "Backpack Upgrade":                            BL2ArchiData("", 0, item_kind=filler),
+    "Bank Storage Upgrade":                        BL2ArchiData("", 0, item_kind=filler),
 }
 
 # stitch dictionaries together
