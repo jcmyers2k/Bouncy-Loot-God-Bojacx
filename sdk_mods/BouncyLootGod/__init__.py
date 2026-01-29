@@ -1042,8 +1042,8 @@ def vehicle_begin_fire(self, caller: unreal.UObject, function: unreal.UFunction,
 
 @hook("WillowGame.WillowPlayerController:ServerCompleteMission")
 def complete_mission(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
-    print(caller.Mission)
-    if blg.settings.get("quest_reward_rando", 0) == 0:
+    # print(caller.Mission)
+    if blg.settings.get("quest_reward_items", 0) == 0:
         return
     empty_reward = unrealsdk.make_struct("RewardData",
         ExperienceRewardPercentage=caller.Mission.Reward.ExperienceRewardPercentage,
@@ -1251,12 +1251,30 @@ def discover_level_challenge_object(self, caller: unreal.UObject, function: unre
     if loc_id is None:
         if check_name is not None:
             show_chat_message("Vault Symbol failed id lookup on: " + check_name + "  " + pathname)
-            # obj_def = str(caller.ContextObject.InteractiveObjectDefinition)
             log_to_file("Vault Symbol failed id lookup on: " + check_name + "  " + pathname)
         return
     if loc_id not in blg.locations_checked:
         blg.locs_to_send.append(loc_id)
         push_locations()
+
+@hook("WillowGame.Behavior_SpawnItems:ApplyBehaviorToContext")
+def bunker_warrior_spawn_items(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    pathname = self.PathName(self)
+    loc_id = None
+    if pathname == "GD_FinalBoss.Character.AIDef_FinalBoss:AIBehaviorProviderDefinition_1.Behavior_SpawnItems_15":
+        check_name = "Enemy: Warrior"
+        loc_id = loc_name_to_id.get(check_name)
+    elif pathname == "GD_HyperionBunkerBoss.Character.AIDef_BunkerBoss:AIBehaviorProviderDefinition_1.Behavior_SpawnItems_17":
+        check_name = "Enemy: BNK-3R"
+        loc_id = loc_name_to_id.get(check_name)
+
+    if loc_id is None:
+        return
+
+    if loc_id not in blg.locations_checked and loc_id not in blg.locs_to_send:
+        blg.locs_to_send.append(loc_id)
+        push_locations()
+
 
 @hook("WillowGame.PauseGFxMovie:CompleteQuitToMenu")
 def complete_quit_to_menu(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
@@ -1689,6 +1707,7 @@ mod_instance = build_mod(
         on_challenge_complete,
         use_chest,
         can_upgrade_skill,
+        bunker_warrior_spawn_items,
         # TravelToStation,
         add_chat_message,
     ]
