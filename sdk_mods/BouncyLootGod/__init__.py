@@ -1,5 +1,4 @@
 # to run from console: pyexec \path\to\BouncyLootGod\__init__.py
-from shutil import which
 
 # note regarding: rlm BouncyLootGod*
 # above works, but coroutines starts a new loop without clearing the old one, so sticking with pyexec for now
@@ -13,8 +12,6 @@ from math import sqrt
 from mods_base import build_mod, ButtonOption, SliderOption, get_pc, hook, ENGINE, ObjectFlags
 from ui_utils import show_chat_message, show_hud_message
 from unrealsdk.hooks import Type, Block, prevent_hooking_direct_calls
-from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
-
 try:
     assert __import__("coroutines").__version_info__ >= (1, 1), "Please install coroutines"
 except (AssertionError, ImportError) as ex:
@@ -29,6 +26,7 @@ import sys
 import os
 import json
 import datetime
+import random
 
 
 mod_version = "0.5"
@@ -36,7 +34,7 @@ if __name__ == "builtins":
     print("running from console, attempting to reload modules")
     get_pc().ConsoleCommand("rlm BouncyLootGod.*")
 
-from BouncyLootGod.archi_defs import item_name_to_id, item_id_to_name,loc_id_to_name, loc_name_to_id, legacy_gear_kind_to_id
+from BouncyLootGod.archi_defs import item_name_to_id, item_id_to_name, loc_name_to_id, gear_kinds
 from BouncyLootGod.lookups import vault_symbol_pathname_to_name, vending_machine_position_to_name, enemy_class_to_loc_name
 from BouncyLootGod.loot_pools import spawn_gear, spawn_gear_from_pool_name, get_or_create_package
 from BouncyLootGod.map_modify import map_modifications, map_area_to_name, place_mesh_object, setup_generic_mob_drops
@@ -73,7 +71,6 @@ class BLGGlobals:
 
     game_items_received = dict()
 
-    is_setting_sdu = False
     should_do_fresh_character_setup = False
     should_do_initial_modify = False
     locations_checked = set()
@@ -158,37 +155,6 @@ def get_exp_for_current_level():
     xp = pc.GetExpPointsRequiredForLevel(level + 1) - pc.GetExpPointsRequiredForLevel(level)
     return xp
 
-def set_exp_base_rate(new_value):
-    gd = unrealsdk.find_object("AttributeInitializationDefinition",
-                              "GD_Balance_Experience.Formulas.\
-Init_EnemyExperience_PerPlaythrough")
-    ci = gd.ConditionalInitialization
-
-
-    for conditional in ci.ConditionalExpressionList:
-        conditional.BaseValueIfTrue.BaseValueConstant = new_value
-        break
-
-    print(f"Set baserate to\
-     {new_value}")
-def set_exp_level_scale(level_difference, which,  new_scale):
-    gd = unrealsdk.find_object("GlobalsDefinition",
-                              "GD_Globals.General.Globals")
-    scales = gd.ExpScaleByLevelDifference
-
-    for scale in scales:
-        if scale.LevelDifference == level_difference:
-            if which == 'higher':
-                scale.HigherLevelEnemyExpScale = new_scale
-                break
-            elif which == 'lower':
-                scale.LowerLevelEnemyExpScale = new_scale
-                break
-
-    print(f"Set {level_difference} {which} scale to\
-     {new_scale}")
-
-
 def can_player_receive():
     pc = get_pc()
     print(pc)
@@ -268,13 +234,13 @@ def handle_item_received(item_id, is_init=False):
     if item_name.startswith("Filler Gear: "):
         spawn_gear(item_name[13:])
     elif item_name in gear_kinds and receive_gear_setting != 0:
-        spawn_gear(item_name)
+        spawn_gear(item_name) 
     else:
         # TODO: detect if it's actually spawnable first (candy, etc.)
         spawn_gear(item_name)
 
     # spawn traps
-    if item_name.startswith("Spawn Trap") and blg.settings.get("spawn_traps") != 0:
+    if item_name.startswith("Trap Spawn: ") and blg.settings.get("spawn_traps") != 0:
         trigger_spawn_trap(item_name)
 
     # mission rewards
@@ -618,7 +584,7 @@ def set_item_card_ex(self, caller: unreal.UObject, function: unreal.UFunction, p
     if (inv_item := caller.InventoryItem) is None:
         return
     
-    if inv_item.ItemName.startswith("AP Check:"):
+    if inv_item.ItemName.startswith("AP Check:") or inv_item.ItemName.startswith("Black Market:"):
         # removes things like skill and child grenade count
         self.SetFunStats("")
         # removes bottom icons and sets title color
@@ -683,13 +649,13 @@ def sync_weapon_slots():
     pc = get_pc()
     inventory_manager = pc.GetPawnInventoryManager()
     if pc and inventory_manager and inventory_manager.SetWeaponReadyMax:
-        blg.is_setting_sdu = True
-        inventory_manager.SetWeaponReadyMax(blg.weapon_slots)
+        with prevent_hooking_direct_calls():
+            inventory_manager.SetWeaponReadyMax(blg.weapon_slots)
 
-def level_my_gear(ButtonInfo):
-    if not blg.has_item("Gear Leveler"):
-        show_chat_message("Need to unlock Gear Leveler.")
-        return
+def level_my_gear():
+    # if not blg.has_item("Gear Leveler"):
+    #     show_chat_message("Need to unlock Gear Leveler.")
+    #     return
     pc = get_pc()
     # could use pc.GetFullInventory([])
     current_level = pc.PlayerReplicationInfo.ExpLevel
@@ -726,12 +692,6 @@ def level_my_gear(ButtonInfo):
     show_chat_message("gear set to level " + str(current_level))
     show_chat_message("save quit and continue to see changes.")
     return
-
-oid_level_my_gear: ButtonOption = ButtonOption(
-    "Level Up My Gear",
-    on_press=level_my_gear,
-    description="Level Up My Gear",
-)
 
 def print_items_received(ButtonInfo):
     # TODO: this needs work. consider replacing with something like "sync now"
@@ -1013,6 +973,8 @@ def duck_pressed(self, caller: unreal.UObject, function: unreal.UFunction, param
             print("moving:" + pickup.Inventory.ItemName)
             pickup.Location = get_loc_in_front_of_player(150, 50)
             pickup.AdjustPickupPhysicsAndCollisionForBeingDropped()
+    # get_pc().PlayerReplicationInfo.AddCurrencyOnHand(1, 100)
+    # print(get_pc().PlayerClass.Name)
     # spawn_gear("VeryRare Shotgun")
     # spawn_gear("VeryRare SMG")
     # spawn_gear("Legendary RocketLauncher")
@@ -1134,11 +1096,7 @@ def leveled_up(self, caller: unreal.UObject, function: unreal.UFunction, params:
 
 @hook("WillowGame.WillowInventoryManager:SetWeaponReadyMax")
 def set_weapon_ready_max(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
-    if blg.is_setting_sdu:
-        blg.is_setting_sdu = False
-        return
-    else:
-        return Block
+    return Block
 
 @hook("WillowGame.WillowPlayerController:Behavior_Melee")
 def behavior_melee(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
@@ -1434,59 +1392,6 @@ def use_vending_machine(self, caller: unreal.UObject, function: unreal.UFunction
             None
         )
 
-@hook("WillowGame.WillowInteractiveObject:UseObject")
-def use_black_market(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
-    if self.Class.Name != "WillowVendingMachineBlackMarket":
-        return
-
-    if blg.settings.get("black_market") == 0:
-        return
-    pos_str = get_vending_machine_pos_str(self)
-    print(pos_str)
-    blg.active_vend = self
-    blg.active_vend_price = self.FixedFeaturedItemCost
-    self.FixedFeaturedItemCost = 10
-    if self.FixedFeaturedItemCost == 10:
-        print("Black Market cost change!")
-    print(self.DefinitionData.BlackMarketName)
-
-    print(self.DefinitionData.ItemOfTheDay.Class.Name)
-    sample_def = unrealsdk.find_object("BlackMarketUpgradeDefinition","GD_BlackMarket.Upgrades_Ammo.Upgrades_Backpack")
-    item_def = unrealsdk.construct_object("BlackMarketUpgradeDefinition",blg.package,"archi_venditem_def", 0, sample_def)
-
-    try:
-        pizza_mesh = unrealsdk.find_object("StaticMesh", "Prop_Details.Meshes.PizzaBoxWhole")
-    except:
-        unrealsdk.load_package("SanctuaryAir_Dynamic")
-        pizza_mesh = unrealsdk.find_object("StaticMesh", "Prop_Details.Meshes.PizzaBoxWhole")
-
-    item_def.BalanceDefinition.InventoryDefinition.NonCompositeStaticMesh = pizza_mesh
-    item_def.BalanceDefinition.InventoryDefinition.ItemName = "AP Check: "
-    item_def.BalanceDefinition.InventoryDefinition.bItemNameIsFullName = True
-    item_def.BalanceDefinition.InventoryDefinition.CustomPresentations = []
-    item_def.BalanceDefinition.InventoryDefinition.bPlayerUseItemOnPickup = True  # allows pickup with full inventory (i think)
-    item_def.BalanceDefinition.InventoryDefinition.bIsConsumable = True
-    try:
-        item_def.BalanceDefinition.InventoryDefinition.OverrideMaterial = unrealsdk.find_object("MaterialInstanceConstant",
-                                                          'Prop_Details.Materials.Mati_PizzaBox')
-    except:
-        item_def.BalanceDefinition.InventoryDefinition.OverrideMaterial = None
-    item_def.BalanceDefinition.InventoryDefinition.BaseRarity.BaseValueConstant = 500.0  # teal, like mission/pearl
-    item_def.BalanceDefinition.InventoryDefinition.UIMeshRotation = unrealsdk.make_struct("Rotator", Pitch=-134, Yaw=-14219, Roll=-7164)
-
-
-
-    print("UseObject")
-    print(self.Class.Name)
-    print(self.ShopType)
-
-
-    print(dir(unrealsdk.find_enum("EShopType")))
-
-    print("is WillowVendingMachine")
-    print(self.FormOfCurrency)
-
-
 # WillowGame.WillowItem:RemoveFromShop
 
 # @hook("WillowGame.WillowPlayerController:PerformedUseAction")
@@ -1497,29 +1402,6 @@ def use_black_market(self, caller: unreal.UObject, function: unreal.UFunction, p
 
 
 # WillowGame.WillowVendingMachine:PlayerBuyItem and bWasItemOfTheDay
-
-@hook("WillowGame.WillowInventoryManager:PlayerSoldItem")
-def player_sold_item(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
-    # Vending machine check counts as "sell". I think because it's initialized with PlayerOwner *shrug*
-    # if caller.Inv.ItemName.startswith("AP Check:"):
-    #     print(blg.active_vend)
-    #     blg.active_vend.SetFeaturedItem(None, "")
-    #     blg.active_vend = None
-    #     loc_name = caller.Inv.ItemName.split("AP Check: ")[1]
-    #     loc_id = loc_name_to_id.get(loc_name)
-    #     if loc_id is None or loc_id in blg.locations_checked:
-    #         print("skipping " + str(loc_id))
-    #         return Block
-    #     blg.locs_to_send.append(loc_id)
-    #     push_locations()
-    pass
-
-
-# @hook("WillowGame.WillowInteractiveObject:UnTouch")
-# def interactive_obj_untouch(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
-#     if self == blg.active_vend:
-#         blg.active_vend = None
-#         print("removing active_vend")
 
 # WillowGame.PlayerSkillTree:UpgradeSkill
 
@@ -1589,20 +1471,128 @@ def use_chest(self, caller: unreal.UObject, function: unreal.UFunction, params: 
     push_locations()
 
 
-oid_base_exp_mod: SliderOption = SliderOption(
-    identifier="Base Experience Modifier",
-    value = 10,
-    min_value = 0,
-    max_value = 50,
-    description = "Base Exp multiplier to allow faster games."
-)
+bm_price = 50
 
-def mod_exp_changed(option,new_value):
-    for slider in oid_base_exp_mod:
-        if option == slider:
-            set_exp_base_rate(new_value)
-            return
+@hook("WillowGame.WillowVendingMachineBlackMarket:GetSellingPriceForInventory")
+def black_market_get_price(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    return Block, bm_price
 
+bm_purchasables = [
+    ("E-Tech Package", "prop_lightfixtures.Meshes.WallLight_02", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    ("Shield Package", "Prop_Tires.RubberTire", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    ("Class Mod Package", "Prop_Signs_02.Meshes.SanctuaryClaptrap", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    ("Grenade Mod Package", "Prop_Papers.Meshes.CrumpledPaper", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    ("Tina COM Package", "Prop_Details.Meshes.Radio", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    ("Gemstone Package", "Prop_Details.Books", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    ("Seraph Crystals", "Prop_Bank.Meshes.Vault", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    ("Money", "Prop_Pickups.Meshes.Money_02", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+]
+
+def change_bm_inventory(bmvm):
+    if bmvm is None:
+        return
+    pc = get_pc()
+    inv_manager = pc.GetPawnInventoryManager()
+    
+    sample_def = unrealsdk.find_object("UsableCustomizationItemDefinition", "GD_Assassin_Items_Aster.Assassin.Head_ZeroAster")
+    item_def = None
+    def setup_item(item, purchasable_data):
+        name = purchasable_data[0] if purchasable_data else "Blank"
+        mesh = unrealsdk.find_object("StaticMesh", purchasable_data[1] if purchasable_data else "Prop_Details.Meshes.PizzaBoxWhole")
+        mat = unrealsdk.find_object("MaterialInstanceConstant", purchasable_data[2] if purchasable_data else "Prop_Details.Materials.Mati_PizzaBox")
+
+        item_def_name = f"archi_bm_def_{name.replace(' ', '_').replace(':', '')}"
+        item_def = unrealsdk.construct_object("UsableCustomizationItemDefinition", blg.package, item_def_name, 0, sample_def)
+        item_def.OverrideMaterial = mat
+        item_def.NonCompositeStaticMesh = mesh
+        item_def.ItemName = f"Black Market: {name}"
+        item_def.CustomPresentations = []
+        item_def.bPlayerUseItemOnPickup = True 
+        item_def.bIsConsumable = True
+        item_def.BaseRarity.BaseValueConstant = 500.0 
+        item_def.UIMeshRotation = unrealsdk.make_struct("Rotator", Pitch = -134, Yaw = -14219, Roll = -7164)
+        
+        item.InitializeFromDefinitionData(
+            unrealsdk.make_struct("ItemDefinitionData", ItemDefinition=item_def),
+            None
+        )
+
+    inv_list = bmvm.GetInventoryList([], pc)
+    inv_items = inv_list[1]
+    for i, inv in enumerate(inv_items):
+        purchasable_data = None
+        if i < len(bm_purchasables):
+            purchasable_data = bm_purchasables[i]
+        setup_item(inv.Item, purchasable_data)
+
+    featured = bmvm.GetFeaturedItem(pc)
+    if featured and featured.Item:
+        setup_item(featured.Item, ("Level My Gear", "Prop_Pickups.Meshes.EridiumContainer", "Prop_Pickups.Materials.Eridium_Pickups_Bar"))
+
+
+@hook("WillowGame.BlackMarketDefinition:CurrentLevelIsBelowMaxForPlayer")
+def current_level_is_below_max(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    # make black market items always appear
+    return Block, True
+
+@hook("WillowGame.WillowVendingMachineBase:ResetInventory")
+def reset_black_market(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    if self.Class.Name != "WillowVendingMachineBlackMarket":
+        return
+    change_bm_inventory(self)
+
+
+@hook("WillowGame.WillowInteractiveObject:UseObject")
+def use_black_market(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    if self.Class.Name != "WillowVendingMachineBlackMarket":
+        return
+    change_bm_inventory(self)
+
+@hook("WillowGame.WillowVendingMachineBlackMarket:PlayerBuyItem")
+def black_market_buy_item(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    pc = get_pc()
+    current_eridium = pc.PlayerReplicationInfo.GetCurrencyOnHand(1)
+    if current_eridium < bm_price:
+        show_chat_message("Not Enough Eridium")
+        return Block
+    else:
+        pc.PlayerReplicationInfo.AddCurrencyOnHand(1, -bm_price)
+
+    bought_item = caller.Item
+    name = bought_item.ItemName
+    if not name.startswith("Black Market: "):
+        return
+    name = name.split("Black Market: ")[-1]
+    spawns = []
+    if name == "E-Tech Package":
+        spawns = random.sample(["E-Tech Relic", "E-Tech Pistol", "E-Tech Shotgun", "E-Tech SMG", "E-Tech SniperRifle", "E-Tech AssaultRifle", "E-Tech RocketLauncher"], 3)
+    elif name == "Shield Package":
+        spawns = ["Legendary Shield", "VeryRare Shield", "Unique Shield"]
+    elif name == "Class Mod Package":
+        spawns = ["Legendary ClassMod", "Rare ClassMod", "VeryRare ClassMod"]
+    elif name == "Grenade Mod Package":
+        spawns = ["Legendary GrenadeMod", "Seraph GrenadeMod", "VeryRare GrenadeMod"]
+    elif name == "Tina COM Package":
+        spawns = ["Tina ClassMod", "Tina ClassMod", "Tina ClassMod"]
+    elif name == "Money":
+        pc.PlayerReplicationInfo.AddCurrencyOnHand(0, blg.money_cap)
+    elif name == "Seraph Crystals":
+        pc.PlayerReplicationInfo.AddCurrencyOnHand(2, 100)
+    elif name == "Gemstone Package":
+        spawns = random.sample(["Gemstone Pistol", "Gemstone Shotgun", "Gemstone SMG", "Gemstone SniperRifle", "Gemstone AssaultRifle" ], 3)
+    elif name == "Level My Gear":
+        level_my_gear()
+    else:
+        show_chat_message("Option not implemented")
+        pc.PlayerReplicationInfo.AddCurrencyOnHand(1, bm_price)
+        print(f"unknown black market purchase: {name}")
+
+    # pc.PlayerReplicationInfo.AddCurrencyOnHand(4, 33) # torgue tokens
+
+    spawn_loc = {"X": self.Location.X, "Y": self.Location.Y - 1000, "Z": self.Location.Z + 500}
+    for s in spawns:
+        spawn_loc["X"] += 20
+        spawn_gear(s, override_loc=spawn_loc)
 
 
 def log_to_file(line):
@@ -1667,10 +1657,8 @@ def add_chat_message(self, caller: unreal.UObject, function: unreal.UFunction, p
 mod_instance = build_mod(
     options=[
         oid_connect_to_socket_server,
-        oid_level_my_gear,
         oid_print_items_received,
         oid_test_btn,
-        oid_base_exp_mod,
         oid_jump_height_override,
     ],
     on_enable=on_enable,
@@ -1697,9 +1685,8 @@ mod_instance = build_mod(
         set_current_map_fully_explored,
         initiate_travel,
         use_vending_machine,
-        use_black_market,
         set_item_card_ex,
-        player_sold_item,
+        # player_sold_item,
         on_killed_enemy,
         gfx_menu_closed,
         complete_mission,
@@ -1710,6 +1697,11 @@ mod_instance = build_mod(
         bunker_warrior_spawn_items,
         # TravelToStation,
         add_chat_message,
+        use_black_market,
+        black_market_get_price,
+        reset_black_market,
+        black_market_buy_item,
+        current_level_is_below_max,
     ]
 )
 

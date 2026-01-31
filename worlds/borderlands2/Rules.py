@@ -176,7 +176,7 @@ def set_world_rules(world: Borderlands2World):
 
                 # rules for story required regions
                 for story_req_reg_name in c_region_data.story_req_regions:
-                    print(f"{ent_name} - {story_req_reg_name}")
+                    # print(f"{ent_name} - {story_req_reg_name}")
                     try_add_rule(entrance, lambda state, reg=story_req_reg_name: state.can_reach_region(reg, world.player))
                     # Register indirect condition - required when using regions inside entrance rule
                     req_region = world.try_get_region(story_req_reg_name)
@@ -218,7 +218,9 @@ def set_world_rules(world: Borderlands2World):
         try_add_rule(world.try_get_entrance("HerosPass to VaultOfTheWarrior"),
             lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 629))) # TODO: not sure why / what amount?
         try_add_rule(world.try_get_entrance("Menu to Oasis"),
-                 lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 629))) # TODO: not sure why / what amount?
+            lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 629))) # TODO: not sure why / what amount?
+        try_add_rule(world.try_get_entrance("Menu to GluttonyGulch"),
+            lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 350))) # Torgue Stage
 
 
     # gear reward grants gear location (alternative requirement, use combine="or")

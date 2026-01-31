@@ -8,6 +8,7 @@ class Goal(FreeText):
     display_name = "Goal"
     default = "Enemy: W4R-D3N"
 
+# delete_starting_gear
 class DeleteStartingGear(Choice):
     """Deletes your character's gear on first connection, avoids granting checks immediately for Skyrocket, Gearbox guns, etc.
     (Please be careful to back up your saves and load the correct character)"""
@@ -17,6 +18,7 @@ class DeleteStartingGear(Choice):
     alias_remove = 1
     default = 0
 
+# gear_rarity_item_pool
 class GearRarityItemPool(Choice):
     """Gear kinds will be added to the item pool as receivable items.
     disabled = Exclude from Item Pool, ability to equip things is always unlocked.
@@ -34,6 +36,7 @@ class GearRarityItemPool(Choice):
     alias_keep = 4
     default = 1
 
+# receive_gear
 class ReceiveGearItems(Choice):
     """When receiving gear (licenses) from the item pool, does it spawn for you or do you only get the ability to equip the ones you find?
     This option does nothing if gear_rarity_item_pool is disabled
@@ -63,6 +66,7 @@ class ReceiveGearItems(Choice):
 #     default = 3
 
 
+# vault_symbols
 class VaultSymbols(Choice):
     """Vault Symbols as location checks"""
     display_name = "Vault Symbols"
@@ -72,6 +76,7 @@ class VaultSymbols(Choice):
     alias_keep = 1
     default = 1
 
+# vending_machines
 class VendingMachines(Choice):
     """Vending Machines as location checks"""
     display_name = "Vending Machines"
@@ -81,13 +86,7 @@ class VendingMachines(Choice):
     alias_keep = 1
     default = 1
 
-class BlackMarket(Choice):
-    """Black Market as location checks"""
-    display_name = "Black Market"
-    option_none = 0
-    option_all = 1
-    default = 0
-
+# entrance_locks
 class EntranceLocks(Choice):
     """
     Moving to another map area (regular or fast travel) is disabled until the associated item is found
@@ -103,6 +102,7 @@ class EntranceLocks(Choice):
     alias_keep = 1
     default = 1
 
+# jump_checks
 class JumpChecks(Choice):
     """How many jump checks should be added to the pool. You will not start with the ability to jump unless you add "Progressive Jump" to your start_inventory_from_pool"""
     display_name = "Jump Checks"
@@ -114,6 +114,7 @@ class JumpChecks(Choice):
     option_5 = 5
     default = 3
 
+# max_jump_height
 class MaxJumpHeight(Choice):
     """Each jump check will give you an equivalent fraction of your max jump height.
     If Jump Checks is set to "not disabled" you will simply jump this high.
@@ -125,6 +126,7 @@ class MaxJumpHeight(Choice):
     option_extra_high = 2
     default = 0
 
+# sprint_checks
 class SprintChecks(Choice):
     """How many sprint checks should be added to the pool. You will not start with the ability to sprint unless you add "Progressive Sprint" to your start_inventory_from_pool"""
     display_name = "Sprint Checks"
@@ -136,6 +138,7 @@ class SprintChecks(Choice):
     option_5 = 5
     default = 3
 
+# max_sprint_speed
 class MaxSprintSpeed(Choice):
     """Each sprint check will give you an equivalent fraction of your max sprint speed.
     If Sprint Checks is set to "not disabled" you will simply sprint this fast.
@@ -148,6 +151,7 @@ class MaxSprintSpeed(Choice):
     option_supersonic = 4
     default = 0
 
+# spawn_traps
 class SpawnTraps(Choice):
     """Add Spawn Traps to the item pool"""
     display_name = "Spawn Traps"
@@ -155,6 +159,7 @@ class SpawnTraps(Choice):
     option_all = 1
     default = 1
 
+# quest_completion_checks
 class QuestCompletionChecks(Choice):
     """Quests completions count as location checks"""
     display_name = "Quest Completion Checks"
@@ -164,6 +169,7 @@ class QuestCompletionChecks(Choice):
     alias_keep = 1
     default = 1
 
+# quest_reward_items
 class QuestRewardItems(Choice):
     """Quest rewards are not given at time of quest completion and are instead added to the item pool
     none = turn this option off
@@ -178,6 +184,7 @@ class QuestRewardItems(Choice):
     option_only_included_regions = 2
     default = 1
 
+# generic_mob_checks
 class GenericMobChecks(Choice):
     """Adds a few checks into the location pool for farming generic mobs. Select a drop chance (default 5%)"""
     display_name = "Generic Mob Checks"
@@ -195,13 +202,14 @@ class GenericMobChecks(Choice):
     default = 5
 
 # class NamedEnemyChecks(Choice):
-#     """Adds checks into the location pool for killing each named enemy
+#     """Adds checks into the location pool for killing each named enemies
 #     """
 #     display_name = "Named Enemy Checks"
 #     option_none = 0
 #     option_all = 1
 #     default = 1
 
+# gear_rarity_checks
 class GearRarityChecks(Choice):
     """Adds checks into the location pool for the first time you pick up gear of each type + rarity combination
     exclude_seraph_plus = Seraph, Pearlescent, and Effervescent are excluded
@@ -218,6 +226,7 @@ class GearRarityChecks(Choice):
     alias_keep = 4
     default = 1
 
+# challenge_checks
 class ChallengeChecks(Choice):
     """Adds checks into the location pool for completing BAR challenges
     none = No challenge checks in the location pool
@@ -234,6 +243,7 @@ class ChallengeChecks(Choice):
     alias_keep = 1
     default = 1
 
+# chest_checks
 class ChestChecks(Choice):
     """
     Adds checks for opening most Red Chests
@@ -265,6 +275,7 @@ class ChestChecks(Choice):
 #     option_purple_rarity_stuff = 3
 #     default = 0
 
+# remove_coop_checks
 class RemoveCoopChecks(Choice):
     """
     Removes checks that are impossible or difficult to do while playing solo
@@ -279,6 +290,7 @@ class RemoveCoopChecks(Choice):
     alias_remove = 2
     default = 2
 
+# remove_ffs_checks
 class RemoveFFSChecks(Choice):
     """
     Removes checks and quest rewards associated with Fight for Sanctuary DLC
@@ -288,6 +300,7 @@ class RemoveFFSChecks(Choice):
     option_remove = 1
     default = 0
 
+# remove_tina_checks
 class RemoveTinaChecks(Choice):
     """
     Removes checks and quest rewards associated with Tiny Tina's Assault on Dragon Keep DLC
@@ -297,6 +310,7 @@ class RemoveTinaChecks(Choice):
     option_remove = 1
     default = 0
 
+# remove_torgue_checks
 class RemoveTorgueChecks(Choice):
     """
     Removes checks and quest rewards associated with Mr. Torgue's Campaign of Carnage DLC
@@ -306,6 +320,7 @@ class RemoveTorgueChecks(Choice):
     option_remove = 1
     default = 0
 
+# remove_scarlett_checks
 class RemoveScarlettChecks(Choice):
     """
     Removes checks and quest rewards associated with Sir Hammerlock's Big Game Hunt (Oasis) DLC
@@ -315,6 +330,7 @@ class RemoveScarlettChecks(Choice):
     option_remove = 1
     default = 0
 
+# remove_hammerlock_checks
 class RemoveHammerlockChecks(Choice):
     """
     Removes checks and quest rewards associated with Sir Hammerlock's Big Game Hunt (Hunter's Grotto) DLC
@@ -324,6 +340,7 @@ class RemoveHammerlockChecks(Choice):
     option_remove = 1
     default = 0
 
+# remove_digi_peak_checks
 class RemoveDigiPeakChecks(Choice):
     """
     Removes checks and quest rewards associated with Digistruct Peak DLC
@@ -333,6 +350,7 @@ class RemoveDigiPeakChecks(Choice):
     option_remove = 1
     default = 0
 
+# remove_headhunter_checks
 class RemoveHeadhunterChecks(Choice):
     """
     Removes checks and quest rewards associated with
@@ -343,6 +361,7 @@ class RemoveHeadhunterChecks(Choice):
     option_remove = 1
     default = 0
 
+# remove_base_game_checks
 class RemoveBaseGameChecks(Choice):
     """
     Removes checks associated with regions in the base game
@@ -352,7 +371,7 @@ class RemoveBaseGameChecks(Choice):
     option_remove = 1
     default = 0
 
-
+# remove_specific_region_checks
 class RemoveSpecificRegionChecks(OptionSet):
     """
     Select specific regions to remove from the randomization
@@ -361,7 +380,8 @@ class RemoveSpecificRegionChecks(OptionSet):
     from .Regions import region_data_table
     valid_keys = list(region_data_table.keys())
 
-class RemoveRaidBossChecks(Choice):
+# remove_raidboss_checks
+class RemoveRaidbossChecks(Choice):
     """
     Removes checks associated with raid bosses
     """
@@ -374,6 +394,7 @@ class RemoveRaidBossChecks(Choice):
 class DeathLink(Toggle):
     display_name = "Death Link"
 
+# death_link_punishment
 class DeathLinkPunishment(Choice):
     """
     If DeathLink is off, this option does nothing.
@@ -387,6 +408,7 @@ class DeathLinkPunishment(Choice):
     option_death = 2
     default = 1
 
+# death_link_send_mode
 class DeathLinkSendMode(Choice):
     """
     If DeathLink is off, this option does nothing.
@@ -434,7 +456,6 @@ class Borderlands2Options(PerGameCommonOptions):
     receive_gear: ReceiveGearItems
     vault_symbols: VaultSymbols
     vending_machines: VendingMachines
-    black_market: BlackMarket
     entrance_locks: EntranceLocks
     jump_checks: JumpChecks
     max_jump_height: MaxJumpHeight
@@ -461,7 +482,7 @@ class Borderlands2Options(PerGameCommonOptions):
     remove_base_game_checks: RemoveBaseGameChecks
     remove_specific_region_checks: RemoveSpecificRegionChecks
     remove_coop_checks: RemoveCoopChecks
-    remove_raidboss_checks: RemoveRaidBossChecks
+    remove_raidboss_checks: RemoveRaidbossChecks
     death_link: DeathLink
     death_link_punishment: DeathLinkPunishment
     death_link_send_mode: DeathLinkSendMode
