@@ -39,7 +39,7 @@ from BouncyLootGod.lookups import vault_symbol_pathname_to_name, vending_machine
 from BouncyLootGod.loot_pools import spawn_gear, spawn_gear_from_pool_name, get_or_create_package
 from BouncyLootGod.map_modify import map_modifications, map_area_to_name, place_mesh_object, setup_generic_mob_drops
 from BouncyLootGod.oob import get_loc_in_front_of_player
-from BouncyLootGod.rarity import get_gear_item_id, get_gear_loc_id, can_gear_item_id_be_equipped, can_inv_item_be_equipped, get_gear_kind
+from BouncyLootGod.rarity import get_gear_item_id, get_gear_loc_id, can_gear_item_id_be_equipped, can_inv_item_be_equipped, get_gear_kind, needs_rarity_check
 from BouncyLootGod.entrances import entrance_to_req_areas, travel_targets
 from BouncyLootGod.traps import spawn_at_dist, trigger_spawn_trap
 from BouncyLootGod.missions import grant_mission_reward, mission_ue_str_to_name
@@ -57,41 +57,39 @@ storage_dir = os.path.join(parent_dir, "blgstor")
 os.makedirs(storage_dir, exist_ok=True)
 
 class BLGGlobals:
-    tick_count = 0
-    sock = None
-    is_sock_connected = False
-    is_archi_connected = False
-    has_shutdown = False
     # server setup:
     # (BL2 + this mod) <=====> (Socket Server + Archi Launcher BL 2 Client) <=====> (server/archipelago.gg)
     #             is_sock_connected                                   is_archi_connected
     # when is_archi_connected is False, we don't know what is and isn't unlocked.
+    def __init__(self):
+        self.tick_count = 0
+        self.sock = None
+        self.is_sock_connected = False
+        self.is_archi_connected = False
+        self.has_shutdown = False
 
-    # items_received = [] # full list of items received, kept in sync with server
+        self.game_items_received = dict() # full dict of items received, kept in sync with server
+        self.should_do_fresh_character_setup = False
+        self.should_do_initial_modify = False
+        self.locations_checked = set()
+        self.locs_to_send = []
+        self.current_map = ""
+        self.money_cap = 200
+        self.weapon_slots = 2
+        self.skill_points_allowed = 0
+        self.jump_z = 630
+        self.sprint_speed = 1.0
+        self.package = get_or_create_package() #unrealsdk.construct_object("Package", None, "BouncyLootGod", ObjectFlags.KEEP_ALIVE)
 
-    game_items_received = dict()
+        self.active_vend = None
+        self.active_vend_price = -1
+        self.temp_reward = None
+        self.settings = {}
+        self.death_receive_pending = False
+        self.deathlink_timestamp = datetime.datetime.now() # immune to sending deathlink until after this time. helps avoid deathlink loops.
 
-    should_do_fresh_character_setup = False
-    should_do_initial_modify = False
-    locations_checked = set()
-    locs_to_send = []
-    current_map = ""
-    money_cap = 200
-    weapon_slots = 2
-    skill_points_allowed = 0
-    jump_z = 630
-    sprint_speed = 1.0
-    package = get_or_create_package() #unrealsdk.construct_object("Package", None, "BouncyLootGod", ObjectFlags.KEEP_ALIVE)
-
-    active_vend = None
-    active_vend_price = -1
-    temp_reward = None
-    settings = {}
-    death_receive_pending = False
-    deathlink_timestamp = datetime.datetime.now() # immune to sending deathlink until after this time. helps avoid deathlink loops.
-
-    items_filepath = None # store items that have successfully made it to the player to avoid dups
-    log_filepath = None # scouting log o7
+        self.items_filepath = None # store items that have successfully made it to the player to avoid dups
+        self.log_filepath = None # scouting log o7
 
     def has_item(self, item_name):
         item_amt = self.game_items_received.get(item_name_to_id[item_name], 0)
@@ -187,6 +185,10 @@ def can_player_receive():
 
     return True
 
+def calc_skill_points_allowed():
+    id1 = item_name_to_id["3 Skill Points"]
+    id2 = item_name_to_id["3 Skill Points (p)"]
+    return 3 * (blg.game_items_received.get(id1, 0) + blg.game_items_received.get(id2, 0))
 
 def handle_item_received(item_id, is_init=False):
     # called only once per item, every init / reconnect
@@ -196,9 +198,9 @@ def handle_item_received(item_id, is_init=False):
     blg.game_items_received[item_id] = blg.game_items_received.get(item_id, 0) + 1
     did_receive_simple = True
     if item_id == item_name_to_id["3 Skill Points"]:
-        blg.skill_points_allowed = 3 * blg.game_items_received[item_id]
+        blg.skill_points_allowed = calc_skill_points_allowed()
     elif item_id == item_name_to_id["3 Skill Points (p)"]:
-        blg.skill_points_allowed = 3 * blg.game_items_received[item_id]
+        blg.skill_points_allowed = calc_skill_points_allowed()
     elif item_id == item_name_to_id["Progressive Money Cap"]:
         blg.money_cap = 200 * (10 ** blg.game_items_received[item_id])
     elif item_id == item_name_to_id["Weapon Slot"]:
@@ -273,8 +275,8 @@ def handle_item_received(item_id, is_init=False):
         get_pc().IncBlackMarketUpgrade(6)
     elif item_id == item_name_to_id["Backpack Upgrade"]:
         get_pc().IncBlackMarketUpgrade(7)
-    elif item_id == item_name_to_id["Bank Storage Upgrade"]:
-        get_pc().IncBlackMarketUpgrade(8)
+    # elif item_id == item_name_to_id["Bank Storage Upgrade"]:
+    #     get_pc().IncBlackMarketUpgrade(8)
 
     # not init, do write.
     with open(blg.items_filepath, 'a') as f:
@@ -602,14 +604,12 @@ def set_item_card_ex(self, caller: unreal.UObject, function: unreal.UFunction, p
         self.setHeight()
         return
 
-    if can_inv_item_be_equipped(blg, inv_item):
-        return
-
     kind = get_gear_kind(inv_item)
-    # TODO: maybe also try to display if this is still to be checked
+    if not can_inv_item_be_equipped(blg, inv_item):
+        self.SetLevelRequirement(True, False, False, f"lvl {inv_item.GameStage}, Can't Equip: {kind}")
 
-    # self.SetLevelRequirement(True, False, False, f"{get_pc().PlayerReplicationInfo.ExpLevel} Can't Equip: {kind}")
-    self.SetLevelRequirement(True, False, False, f"Can't Equip: {kind}")
+    if needs_rarity_check(blg, inv_item):
+        self.SetFunStats(f"<font size='18' color='#FFFF00'>{kind} is unchecked! Pick me up!</font>")
 
 def get_total_skill_pts():
     # unused for now.
@@ -673,12 +673,15 @@ def level_my_gear():
     for item in backpack:
         item.DefinitionData.ManufacturerGradeIndex = current_level
         item.DefinitionData.GameStage = current_level
+        item.InitializeFromDefinitionData(item.DefinitionData, None)
 
     # go through item chain (relic, classmod, grenade, shield)
     item = inventory_manager.ItemChain
     while item:
         item.DefinitionData.ManufacturerGradeIndex = current_level
         item.DefinitionData.GameStage = current_level
+        item.InitializeFromDefinitionData(item.DefinitionData, None)
+
         item = item.Inventory
 
     # go through equipment slots
@@ -687,10 +690,9 @@ def level_my_gear():
         if weapon:
             weapon.DefinitionData.ManufacturerGradeIndex = current_level
             weapon.DefinitionData.GameStage = current_level
-
+            weapon.InitializeFromDefinitionData(weapon.DefinitionData, None)
 
     show_chat_message("gear set to level " + str(current_level))
-    show_chat_message("save quit and continue to see changes.")
     return
 
 def print_items_received(ButtonInfo):
@@ -752,6 +754,9 @@ def check_full_inventory():
     if not blg.is_archi_connected:
         return
 
+    if blg.should_do_fresh_character_setup:
+        return
+
     pc = get_pc()
     inventory_manager = pc.GetPawnInventoryManager()
     # could use pc.GetFullInventory([])
@@ -778,6 +783,7 @@ def delete_gear():
     inventory_manager = pc.GetPawnInventoryManager()
     items = []
     item = inventory_manager.ItemChain
+    # TODO might need with prevent_hooking_direct_calls for InventoryUnreadied calls
     while item:
         items.append(item)
         item = item.Inventory
@@ -789,6 +795,7 @@ def delete_gear():
         if weapon:
             inventory_manager.InventoryUnreadied(weapon, True)
 
+    # TODO: maybe avoid deleting mission items or starting echo
     inventory_manager.Backpack = []
 
 def on_enable():
@@ -857,10 +864,10 @@ def modify_map_area(self, caller: unreal.UObject, function: unreal.UFunction, pa
     # run initial setup on character
     if blg.should_do_fresh_character_setup:
         print("performing fresh character setup")
-        blg.should_do_fresh_character_setup = False
         # remove starting inv
         if blg.settings.get("delete_starting_gear") == 1:
             delete_gear()
+        blg.should_do_fresh_character_setup = False
     
     # run other first load setup
     if blg.should_do_initial_modify:
@@ -1005,51 +1012,74 @@ def vehicle_begin_fire(self, caller: unreal.UObject, function: unreal.UFunction,
 @hook("WillowGame.WillowPlayerController:ServerCompleteMission")
 def complete_mission(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
     # print(caller.Mission)
-    if blg.settings.get("quest_reward_items", 0) == 0:
-        return
-    empty_reward = unrealsdk.make_struct("RewardData",
-        ExperienceRewardPercentage=caller.Mission.Reward.ExperienceRewardPercentage,
-    )
-    blg.temp_reward = (
-        unrealsdk.make_struct("RewardData",
+    if blg.settings.get("quest_reward_items", 0) != 0:
+        # quest rewards are in the multiworld, replace with empty here
+        empty_reward = unrealsdk.make_struct("RewardData",
             ExperienceRewardPercentage=caller.Mission.Reward.ExperienceRewardPercentage,
-            CurrencyRewardType=caller.Mission.Reward.CurrencyRewardType,
-            CreditRewardMultiplier=caller.Mission.Reward.CreditRewardMultiplier,
-            OtherCurrencyReward=caller.Mission.Reward.OtherCurrencyReward,
-            RewardItems=caller.Mission.Reward.RewardItems,
-            RewardItemPools=caller.Mission.Reward.RewardItemPools,
-        ),
-        unrealsdk.make_struct("RewardData",
-            ExperienceRewardPercentage=caller.Mission.AlternativeReward.ExperienceRewardPercentage,
-            CurrencyRewardType=caller.Mission.AlternativeReward.CurrencyRewardType,
-            CreditRewardMultiplier=caller.Mission.AlternativeReward.CreditRewardMultiplier,
-            OtherCurrencyReward=caller.Mission.AlternativeReward.OtherCurrencyReward,
-            RewardItems=caller.Mission.AlternativeReward.RewardItems,
-            RewardItemPools=caller.Mission.AlternativeReward.RewardItemPools,
-        ),
-    )
-    caller.Mission.Reward = empty_reward
-    caller.Mission.AlternativeReward = empty_reward
+        )
+        blg.temp_reward = (
+            unrealsdk.make_struct("RewardData",
+                ExperienceRewardPercentage=caller.Mission.Reward.ExperienceRewardPercentage,
+                CurrencyRewardType=caller.Mission.Reward.CurrencyRewardType,
+                CreditRewardMultiplier=caller.Mission.Reward.CreditRewardMultiplier,
+                OtherCurrencyReward=caller.Mission.Reward.OtherCurrencyReward,
+                RewardItems=caller.Mission.Reward.RewardItems,
+                RewardItemPools=caller.Mission.Reward.RewardItemPools,
+            ),
+            unrealsdk.make_struct("RewardData",
+                ExperienceRewardPercentage=caller.Mission.AlternativeReward.ExperienceRewardPercentage,
+                CurrencyRewardType=caller.Mission.AlternativeReward.CurrencyRewardType,
+                CreditRewardMultiplier=caller.Mission.AlternativeReward.CreditRewardMultiplier,
+                OtherCurrencyReward=caller.Mission.AlternativeReward.OtherCurrencyReward,
+                RewardItems=caller.Mission.AlternativeReward.RewardItems,
+                RewardItemPools=caller.Mission.AlternativeReward.RewardItemPools,
+            ),
+        )
+        caller.Mission.Reward = empty_reward
+        caller.Mission.AlternativeReward = empty_reward
 
-    loc_name = "Quest: " + mission_ue_str_to_name.get(caller.Mission.Name, "")
-    loc_id = loc_name_to_id.get(loc_name)
-    if loc_id is None:
-        print("unknown quest: " + caller.Mission.Name + " " + loc_name)
-        show_chat_message("unknown quest")
-        return
+    # send quest completion 
+    if blg.settings.get("quest_completion_checks", 0) != 0:
+        loc_name = "Quest: " + mission_ue_str_to_name.get(caller.Mission.Name, "")
+        loc_id = loc_name_to_id.get(loc_name)
+        if loc_id is None:
+            print("unknown quest: " + caller.Mission.Name + " " + loc_name)
+            show_chat_message("unknown quest")
+            return
 
-    if loc_id in blg.locations_checked:
-        return
+        if loc_id in blg.locations_checked:
+            return
 
-    blg.locs_to_send.append(loc_id)
-    push_locations()
+        blg.locs_to_send.append(loc_id)
+        push_locations()
 
 
 @hook("WillowGame.WillowPlayerController:ServerCompleteMission", Type.POST)
 def post_complete_mission(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
-    caller.Mission.Reward = blg.temp_reward[0]
-    caller.Mission.AlternativeReward = blg.temp_reward[1]
-    blg.temp_reward = None
+    if blg.settings.get("quest_reward_items", 0) != 0:
+        # reset quest reward
+        caller.Mission.Reward = blg.temp_reward[0]
+        caller.Mission.AlternativeReward = blg.temp_reward[1]
+        blg.temp_reward = None
+
+@hook("WillowGame.WillowInventoryManager:AddInventoryToBackpack", Type.POST)
+def post_add_to_backpack(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    # print(f"add to backpack {caller}")
+    # receiving items from quests
+    if self != get_pc().GetPawnInventoryManager():
+        # not player inventory
+        return
+    if blg.should_do_fresh_character_setup:
+        return
+
+    if not blg.is_archi_connected:
+        return
+
+    loc_id = get_gear_loc_id(caller.Inv)
+    if loc_id is None or loc_id in blg.locations_checked:
+        return
+    blg.locs_to_send.append(loc_id)
+    push_locations()
 
 @hook("WillowGame.WillowInventoryManager:AddInventory", Type.POST)
 def post_add_inventory(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
@@ -1366,7 +1396,7 @@ def use_vending_machine(self, caller: unreal.UObject, function: unreal.UFunction
         )
         self.FeaturedItem.ItemName = "AP Check: " + check_name
     else:
-        print(self.FeaturedItem.Class.Name)
+        # print(self.FeaturedItem.Class.Name)
         sample_def = unrealsdk.find_object("UsableCustomizationItemDefinition", "GD_Assassin_Items_Aster.Assassin.Head_ZeroAster")
         item_def = unrealsdk.construct_object("UsableCustomizationItemDefinition", blg.package, "archi_venditem_def", 0, sample_def)
 
@@ -1475,6 +1505,8 @@ bm_price = 50
 
 @hook("WillowGame.WillowVendingMachineBlackMarket:GetSellingPriceForInventory")
 def black_market_get_price(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    if caller.InventoryForSale.ItemName.endswith("Bank SDU"):
+        return
     return Block, bm_price
 
 bm_purchasables = [
@@ -1482,7 +1514,7 @@ bm_purchasables = [
     ("Shield Package", "Prop_Tires.RubberTire", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
     ("Class Mod Package", "Prop_Signs_02.Meshes.SanctuaryClaptrap", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
     ("Grenade Mod Package", "Prop_Papers.Meshes.CrumpledPaper", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-    ("Tina COM Package", "Prop_Details.Meshes.Radio", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    # ("Tina COM Package", "Prop_Details.Meshes.Radio", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
     ("Gemstone Package", "Prop_Details.Books", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
     ("Seraph Crystals", "Prop_Bank.Meshes.Vault", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
     ("Money", "Prop_Pickups.Meshes.Money_02", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
@@ -1519,12 +1551,15 @@ def change_bm_inventory(bmvm):
 
     inv_list = bmvm.GetInventoryList([], pc)
     inv_items = inv_list[1]
-    for i, inv in enumerate(inv_items):
-        purchasable_data = None
-        if i < len(bm_purchasables):
-            purchasable_data = bm_purchasables[i]
+    i = 0
+    for inv in inv_items:
+        if inv.Item.ItemName.endswith("Bank SDU"):
+            continue
+        purchasable_data = bm_purchasables[i] if i < len(bm_purchasables) else None
+        i += 1
         setup_item(inv.Item, purchasable_data)
 
+    # leaving this as normal purchase so. the whaddaya buyin challenge and Plan B mission remain possible
     featured = bmvm.GetFeaturedItem(pc)
     if featured and featured.Item:
         setup_item(featured.Item, ("Level My Gear", "Prop_Pickups.Meshes.EridiumContainer", "Prop_Pickups.Materials.Eridium_Pickups_Bar"))
@@ -1533,6 +1568,7 @@ def change_bm_inventory(bmvm):
 @hook("WillowGame.BlackMarketDefinition:CurrentLevelIsBelowMaxForPlayer")
 def current_level_is_below_max(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
     # make black market items always appear
+    # TODO this should probably not override for bank sdu
     return Block, True
 
 @hook("WillowGame.WillowVendingMachineBase:ResetInventory")
@@ -1551,6 +1587,12 @@ def use_black_market(self, caller: unreal.UObject, function: unreal.UFunction, p
 @hook("WillowGame.WillowVendingMachineBlackMarket:PlayerBuyItem")
 def black_market_buy_item(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
     pc = get_pc()
+    bought_item = caller.Item
+    name = bought_item.ItemName
+    if not name.startswith("Black Market: "):
+        return
+    name = name.split("Black Market: ")[-1]
+
     current_eridium = pc.PlayerReplicationInfo.GetCurrencyOnHand(1)
     if current_eridium < bm_price:
         show_chat_message("Not Enough Eridium")
@@ -1558,11 +1600,7 @@ def black_market_buy_item(self, caller: unreal.UObject, function: unreal.UFuncti
     else:
         pc.PlayerReplicationInfo.AddCurrencyOnHand(1, -bm_price)
 
-    bought_item = caller.Item
-    name = bought_item.ItemName
-    if not name.startswith("Black Market: "):
-        return
-    name = name.split("Black Market: ")[-1]
+    show_chat_message(f"Purchased {name}!")
     spawns = []
     if name == "E-Tech Package":
         spawns = random.sample(["E-Tech Relic", "E-Tech Pistol", "E-Tech Shotgun", "E-Tech SMG", "E-Tech SniperRifle", "E-Tech AssaultRifle", "E-Tech RocketLauncher"], 3)
@@ -1572,8 +1610,6 @@ def black_market_buy_item(self, caller: unreal.UObject, function: unreal.UFuncti
         spawns = ["Legendary ClassMod", "Rare ClassMod", "VeryRare ClassMod"]
     elif name == "Grenade Mod Package":
         spawns = ["Legendary GrenadeMod", "Seraph GrenadeMod", "VeryRare GrenadeMod"]
-    elif name == "Tina COM Package":
-        spawns = ["Tina ClassMod", "Tina ClassMod", "Tina ClassMod"]
     elif name == "Money":
         pc.PlayerReplicationInfo.AddCurrencyOnHand(0, blg.money_cap)
     elif name == "Seraph Crystals":
@@ -1702,6 +1738,7 @@ mod_instance = build_mod(
         reset_black_market,
         black_market_buy_item,
         current_level_is_below_max,
+        post_add_to_backpack,
     ]
 )
 
