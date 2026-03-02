@@ -37,12 +37,16 @@ Borderlands 2:
   remove_raidboss_checks: remove
   death_link_punishment: ffyl
   death_link_send_mode: death
+  max_level_checks: level_14
   local_items: []
   non_local_items: []
-  start_hints: []
+  start_hints: ["Travel: Southern Shelf", "Travel: Three Horns Divide"]
   start_location_hints: []
-  # exclude locations you can't/don't want to do. ex. Krieg can't complete this challenge.
-  exclude_locations: ["Challenge CausticCaverns: Ever Blow Bubbles...?", "Quest: Grandma Flexington's Story: Raid Difficulty"]
+  # exclude locations you can't/don't want to do.
+  exclude_locations: [
+    "Symbol Dust: Speedway Wall", "Chest Sanctuary: Roland's Armory",
+    "Challenge ThreeHornsDivide: Man's Best Friends", "Challenge Frostburn: Praise Be to Scorch"
+  ]
   priority_locations: []
   start_inventory_from_pool:
     Melee: 1

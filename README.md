@@ -47,12 +47,35 @@ If the game crashes when loading your character, please try disabling the mod, t
 **Before doing any non-archipelago play in Borderlands 2, Disable the mod and Restart your game!!!**
 
 ## FAQ
+### What gets randomized?
+Items include your in-game abilities: melee, jump, crouch, sprint, skill points, equip guns, and more. Edit your starting inventory for anything you would like to start with.  
+Locations include quest completions, opening Red Chests, finding Vault Symbols, checking Vending Machines, completing BAR Challenges, and rarity-based checks (finding gear of a certain rarity for the first time).
+
+### What version do I play?
+For the most stable experience play the [latest stable version](https://github.com/EdricY/Bouncy-Loot-God/releases/latest).  
+For the latest features and if you would like to participate in testing and reporting issues, play the bleeding edge version (find it on the [release page](https://github.com/EdricY/Bouncy-Loot-God/releases)).
+
+### What yaml do I choose?
+For syncs lasting around 2 hours, `basegame-short.yaml` is a good, well-tested choice.  
+Specific yamls for other DLCs are available, and should also be sync viable.  
+For longer runs, `basegame-med.yaml` goes through the full base game story and should be beatable in about 8 hours.
+
+### What other mods do you recommend?
+Playing with other mods is not officially supported (yet!). But people have found the following mods useful:  
+[Always On Level](https://github.com/EdricY/EdricY-BL2-sdk-mods/tree/main/AlwaysOnLevel)  
+[Apples Borderlands Cheats](https://bl-sdk.github.io/willow2-mod-db/mods/apples-borderlands-cheats/)  
+[EXP Adjuster](https://bl-sdk.github.io/willow2-mod-db/mods/expadjuster/)  
+[Jump to Level Challenges](https://bl-sdk.github.io/willow2-mod-db/mods/jumptolevelchallenges/)  
+[Loot Collector](https://bl-sdk.github.io/willow2-mod-db/mods/lootcollector/)  
+
 ### I keep getting "client is not connected", what do I do?
 Make sure you have followed the steps in [Requirements](#requirements) (check versions!). And make sure you open "Borderlands 2 Client" from the Archipelago launcher, not Text Client.  
 Also try hitting the "Connect to Socket Server" button as well as disabling and re-enabling the mod.  
 Another potential issue you can be running into is having multiple watcher loops running in game. The may happen if you quickly re-enabled the mod or connected the client after launching the game. To fix this, try disabling the mod, waiting 5 seconds, then re-enabling the mod.
+
 ### A browser window opens when I enable the mod, what do I do?
 You need to install coroutines. see [step 3 in Requirements](#requirements)
+
 ### I can't deal damage and want to deal damage, what do I do?
 You may add Melee to your beginning items. see [blsample.yaml](https://github.com/EdricY/Bouncy-Loot-God/blob/main/blsample.yaml)  
 Include something like this in your yaml:
@@ -80,7 +103,7 @@ This is for AP world generation reasons. If you want the technical reasons read 
 ### Where do I report issues?
 You can message in the Discord or create an issue on GitHub. Please try to check if you are reporting a known issue on either the [release page](https://github.com/EdricY/Bouncy-Loot-God/releases) or searching in Discord.
 
-## Development stuff
+## Development stuff (ignore if you're just wanting to play/test)
 
 For developing the sdkmod, this is probably useful. Development things here are specific to Windows 11.
 I probably can't help with a non-Windows development environment.
@@ -124,6 +147,7 @@ We might consider adding unit tests in the future.
 To create files for release: `python zip-it.py`  
 This puts borderlands2.apworld and BouncyLootGod.sdkmod into /dist, which are the files needed to play outside of development mode.
 
+## More Links
 
-Trello Board:  
-https://trello.com/b/y4WWZF3E/bl2-archipelago
+[Trello Board](https://trello.com/b/y4WWZF3E/bl2-archipelago)  
+[Discord](https://discord.com/channels/1085716850370957462/1164256699608219698)  

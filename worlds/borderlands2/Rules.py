@@ -81,12 +81,8 @@ def set_world_rules(world: Borderlands2World):
     # FFS Butt Stalion requires the amulet
     try_add_rule(world.try_get_location("Challenge Backburner: Fandir Fiction"),
             lambda state: state.has("Unique Relic", world.player))
-    try_add_rule(world.try_get_location("Challenge Backburner: Fandir Fiction"),
-            lambda state: state.has("Reward: The Amulet", world.player))
     try_add_rule(world.try_get_location("Rainbow Shotgun"),
             lambda state: state.has("Unique Relic", world.player))
-    try_add_rule(world.try_get_location("Rainbow Shotgun"),
-            lambda state: state.has("Reward: The Amulet", world.player))
     try_add_rule(world.try_get_location("Rainbow Shotgun"),
             lambda state: state.has("Rainbow Shotgun", world.player), "or")
 
@@ -155,11 +151,12 @@ def set_world_rules(world: Borderlands2World):
                     world.multiworld.register_indirect_condition(region, entrance)
 
     # require basic combat to surpass level 0
-    try_add_rule(world.try_get_entrance("Level 0 to Level 1-5"),
-        lambda state: state.has_any(["Melee", "Common Pistol"], world.player))
+    if world.options.gear_rarity_item_pool.value > 0:
+        try_add_rule(world.try_get_entrance("Level 0 to Level 1-5"),
+            lambda state: state.has_any(["Melee", "Common Pistol"], world.player))
 
-    try_add_rule(world.try_get_entrance("Level 6-10 to Level 11-15"),
-        lambda state: state.has_all(["Melee", "Common Pistol", "Common Shield", "Common Shotgun", "Uncommon Pistol"], world.player))
+        try_add_rule(world.try_get_entrance("Level 6-10 to Level 11-15"),
+            lambda state: state.has_all(["Melee", "Common Pistol", "Common Shield", "Common Shotgun", "Uncommon Pistol"], world.player))
 
 
     # map region connection rules
@@ -196,12 +193,20 @@ def set_world_rules(world: Borderlands2World):
 
     # misc. region rules
 
-    try_add_rule(world.try_get_entrance("WindshearWaste to SouthernShelf"),
-        lambda state: state.has_any(["Melee", "Common Pistol"], world.player))
+    try_add_rule(world.try_get_location("Challenge Money: For the Hoard!"), # requires 10,000
+        lambda state: state.has("Progressive Money Cap", world.player, 2))
+
+    if world.options.gear_rarity_item_pool.value > 0:
+        try_add_rule(world.try_get_entrance("WindshearWaste to SouthernShelf"),
+            lambda state: state.has_any(["Melee", "Common Pistol"], world.player))
 
     # expect player to have access to Backburner before starting FFS
     try_add_rule(world.try_get_entrance("Menu to FFSIntroSanctuary"),
         lambda state: state.has("Travel: The Backburner", world.player))
+
+    # need to shoot the bridge halfway through CandlerakksCrag
+    try_add_rule(world.try_get_entrance("HuntersGrotto to CandlerakksCrag"),
+        lambda state: state.has("Common Pistol", world.player))
 
     # Terminus requires crouching through a tunnel. technically there are vending machines before the tunnel, but not gonna worry about it.
     try_add_rule(world.try_get_entrance("CandlerakksCrag to Terminus"),
@@ -214,7 +219,7 @@ def set_world_rules(world: Borderlands2World):
 
     if world.options.jump_checks.value > 0:
         try_add_rule(world.try_get_entrance("BadassCrater to TorgueArena"),
-            lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 490)))
+            lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 490))) # jumping out of "kicked out" area, final cookie vending machine, barrier into Badassasaurus fight
         try_add_rule(world.try_get_entrance("HerosPass to VaultOfTheWarrior"),
             lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 629))) # TODO: not sure why / what amount?
         try_add_rule(world.try_get_entrance("Menu to Oasis"),

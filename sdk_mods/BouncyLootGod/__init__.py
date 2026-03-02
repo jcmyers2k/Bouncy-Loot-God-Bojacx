@@ -199,6 +199,7 @@ def handle_item_received(item_id, is_init=False):
     # so... do setup for received items, but skip granting duplicates
     # return True if item properly received and sound should play
     blg.game_items_received[item_id] = blg.game_items_received.get(item_id, 0) + 1
+    item_name = item_id_to_name.get(item_id)
     did_receive_simple = True
     if item_id == item_name_to_id["3 Skill Points"]:
         blg.skill_points_allowed = calc_skill_points_allowed()
@@ -206,7 +207,7 @@ def handle_item_received(item_id, is_init=False):
         blg.skill_points_allowed = calc_skill_points_allowed()
     elif item_id == item_name_to_id["Progressive Money Cap"]:
         blg.money_cap = 200 * (10 ** blg.game_items_received[item_id])
-    elif item_id == item_name_to_id["Weapon Slot"]:
+    elif item_id == item_name_to_id["Progressive Weapon Slot"]:
         blg.weapon_slots = min(4, blg.weapon_slots + 1)
     elif item_id == item_name_to_id["Progressive Jump"]:
         blg.jump_z = calc_jump_height(blg)
@@ -219,6 +220,9 @@ def handle_item_received(item_id, is_init=False):
         return False
 
     if did_receive_simple:
+        with open(blg.items_filepath, 'a') as f:
+            f.write(str(item_id) + "\n")
+        show_chat_message("Received: " + item_name)
         return True
 
     print("receiving " + str(item_id))
@@ -228,7 +232,6 @@ def handle_item_received(item_id, is_init=False):
         print("skipping")
         return False
 
-    item_name = item_id_to_name.get(item_id)
     if not item_name:
         print("unknown item: " + str(item_id))
         return False
@@ -239,7 +242,7 @@ def handle_item_received(item_id, is_init=False):
     if item_name.startswith("Filler Gear: "):
         spawn_gear(item_name[13:])
     elif item_name in gear_kinds and receive_gear_setting != 0:
-        spawn_gear(item_name) 
+        spawn_gear(item_name)
     else:
         # TODO: detect if it's actually spawnable first (candy, etc.)
         spawn_gear(item_name)
@@ -343,7 +346,6 @@ def pull_items():
             show_chat_message("detected items out of sync or archi client has disconnected.")
             check_is_archi_connected()
             return
-
         should_play_sound = False
         # loop through new ones
         for item_id in diff:
@@ -452,7 +454,10 @@ def push_locations():
     # TODO: bundle into one request instead of multiple
     while len(blg.locs_to_send) > 0:
         check = blg.locs_to_send[0]
-        if check in blg.locations_checked:
+
+        if check == blg.settings.get("goal"): # look for if check is goal
+            print("GOAL!")
+        elif check in blg.locations_checked:  # otherwise skip already checked
             blg.locs_to_send.pop(0)
             continue
         print('sending ' + str(check))
@@ -654,6 +659,7 @@ def sync_weapon_slots():
     if pc and inventory_manager and inventory_manager.SetWeaponReadyMax:
         with prevent_hooking_direct_calls():
             inventory_manager.SetWeaponReadyMax(blg.weapon_slots)
+    # TODO: should also potentially unequip weapons in slots 3 and 4
 
 def level_my_gear():
     # if not blg.has_item("Gear Leveler"):
@@ -676,14 +682,16 @@ def level_my_gear():
     for item in backpack:
         item.DefinitionData.ManufacturerGradeIndex = current_level
         item.DefinitionData.GameStage = current_level
-        item.InitializeFromDefinitionData(item.DefinitionData, None)
+        with prevent_hooking_direct_calls():
+            item.InitializeFromDefinitionData(item.DefinitionData, None)
 
     # go through item chain (relic, classmod, grenade, shield)
     item = inventory_manager.ItemChain
     while item:
         item.DefinitionData.ManufacturerGradeIndex = current_level
         item.DefinitionData.GameStage = current_level
-        item.InitializeFromDefinitionData(item.DefinitionData, None)
+        with prevent_hooking_direct_calls():
+            item.InitializeFromDefinitionData(item.DefinitionData, None)
 
         item = item.Inventory
 
@@ -693,7 +701,8 @@ def level_my_gear():
         if weapon:
             weapon.DefinitionData.ManufacturerGradeIndex = current_level
             weapon.DefinitionData.GameStage = current_level
-            weapon.InitializeFromDefinitionData(weapon.DefinitionData, None)
+            with prevent_hooking_direct_calls():
+                weapon.InitializeFromDefinitionData(weapon.DefinitionData, None)
 
     show_chat_message("gear set to level " + str(current_level))
     return
@@ -871,7 +880,7 @@ def modify_map_area(self, caller: unreal.UObject, function: unreal.UFunction, pa
         if blg.settings.get("delete_starting_gear") == 1:
             delete_gear()
         blg.should_do_fresh_character_setup = False
-    
+
     # run other first load setup
     if blg.should_do_initial_modify:
         print("performing initial modify")
@@ -886,7 +895,7 @@ def modify_map_area(self, caller: unreal.UObject, function: unreal.UFunction, pa
             # TODO: I think we are missing Torgue DLC "kicked out" (or it might just be inside torgue arena ring)
             show_chat_message("Missing map name, please report issue: " + new_map_area)
             map_name = new_map_area # override with internal name
-        else:
+        elif blg.settings.get("entrance_locks", 0) != 0:
             exit_areas = set()
             for areas in entrance_to_req_areas.values():
                 if len(areas) > 0 and areas[0] == map_name:
@@ -960,18 +969,22 @@ def jump(self, caller: unreal.UObject, function: unreal.UFunction, params: unrea
 
 @hook("WillowGame.WillowPlayerPawn:DoJump")
 def do_jump(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
-    if oid_jump_height_override.value != 0: # debug jump height, remove me later
-        get_pc().Pawn.JumpZ = oid_jump_height_override.value
+    if oid_jump_z_override.value != 0: # for debug, remove me later
+        get_pc().Pawn.JumpZ = oid_jump_z_override.value
         return
 
-    get_pc().Pawn.JumpZ = blg.jump_z
+    get_pc().Pawn.JumpZ = blg.jump_z * (oid_jump_z_downscale.value / 100)
     # if not blg.has_item("Progressive Jump"):
     #     show_chat_message("jump disabled!")
     #     return Block
 
 @hook("WillowGame.WillowPlayerPawn:DoSprint")
 def sprint_pressed(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
-    self.SprintingPct = blg.sprint_speed
+    if oid_sprint_override.value != 0: # for debug, remove me later
+        self.SprintingPct = oid_sprint_override.value
+        return
+
+    self.SprintingPct = blg.sprint_speed * (oid_sprint_downscale.value / 100)
     # if not blg.has_item("Sprint"):
     #     show_chat_message("sprint disabled!")
     #     return Block
@@ -1233,6 +1246,9 @@ oid_test_btn: ButtonOption = ButtonOption(
 
 @hook("WillowGame.Behavior_DiscoverLevelChallengeObject:ApplyBehaviorToContext")
 def discover_level_challenge_object(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    if blg.settings.get("vault_symbols", 0) == 0:
+        return
+
     # obj_id = str(caller.ContextObject)
     # check_name = vault_symbol_pathname_to_name.get(obj_id)
     pathname = caller.ContextObject.PathName(caller.ContextObject)
@@ -1457,14 +1473,16 @@ def on_killed_enemy(self, caller: unreal.UObject, function: unreal.UFunction, pa
         loc_name = enemy_class_to_loc_name.get(enemy_key)
     if not loc_name:
         return
-    print("loc_name")
-    print(loc_name)
+    # print("loc_name")
+    # print(loc_name)
     loc_id = loc_name_to_id[loc_name]
     blg.locs_to_send.append(loc_id)
     push_locations()
 
 @hook("WillowGame.WillowPlayerController:ServerCompleteChallenge")
 def on_challenge_complete(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    if blg.settings.get("challenge_checks", 0) == 0:
+        return
     pn = caller.ChalDef.PathName(caller.ChalDef)
     loc_name = challenge_dict.get(pn)
     if not loc_name:
@@ -1488,6 +1506,8 @@ def get_chest_pos_str(obj):
 
 @hook("WillowGame.WillowInteractiveObject:UseObject")
 def use_chest(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
+    if blg.settings.get("chest_checks", 0) == 0:
+        return
     pos_str = get_chest_pos_str(self)
     loc_name = chest_dict.get(pos_str)
     if loc_name is None:
@@ -1645,13 +1665,47 @@ def log_to_file(line):
         f.write(line + "\n")
 
 
-oid_jump_height_override: SliderOption = SliderOption(
-    identifier="jump z",
+oid_jump_z_override: SliderOption = SliderOption(
+    identifier="jump z (debug)",
     value=0,
     min_value=0,
     max_value=2000,
     description=(
-        "Override your jump z value. This is ignored if set to 0. This option is only meant for debug/testing/data collection"
+        "Override your jump z value, ignoring unlocked amount and downscale. This option is ignored if set to 0. This option is only meant for debug/testing/data collection"
+    )
+)
+
+oid_sprint_override: SliderOption = SliderOption(
+    identifier="sprint (debug)",
+    value=0,
+    min_value=0,
+    max_value=4,
+    step=1,
+    description=(
+        "Override your sprint value, ignoring unlocked amount and downscale. This option is ignored if set to 0. This option is only meant for debug/testing/data collection"
+    )
+)
+
+
+oid_jump_z_downscale: SliderOption = SliderOption(
+    identifier="jump percent",
+    value=100,
+    min_value=0,
+    max_value=100,
+    step=1, 
+    description=(
+        "Scale your jump z down if your unlocked amount is too high. Set to 100 for full unlocked amount."
+    )
+)
+
+oid_sprint_downscale: SliderOption = SliderOption(
+    identifier="sprint percent",
+    value=100,
+    min_value=0,
+    max_value=100,
+    step=1,
+    description=(
+        "Scale your sprint speed down if your unlocked amount is too high. Set to 100 for full unlocked amount."
     )
 )
 
@@ -1905,7 +1959,10 @@ mod_instance = build_mod(
         oid_connect_to_socket_server,
         oid_print_items_received,
         oid_test_btn,
-        oid_jump_height_override,
+        oid_jump_z_override,
+        oid_sprint_override,
+        oid_jump_z_downscale,
+        oid_sprint_downscale,
     ],
     on_enable=on_enable,
     on_disable=on_disable,

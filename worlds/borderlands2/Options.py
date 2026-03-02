@@ -52,7 +52,7 @@ class ReceiveGearItems(Choice):
     alias_off = 0
     option_receive = 1
     alias_receive_all = 1
-    alias_on = 0
+    alias_on = 1
     default = 1
 
 class FillerGear(Choice):
@@ -183,7 +183,7 @@ class MaxSprintSpeed(Choice):
 
 # spawn_traps
 class SpawnTraps(Choice):
-    """Add Spawn Traps to the item pool"""
+    """Add Spawn Traps to the item pool. Digistruct Peak DLC is required for these to work."""
     display_name = "Spawn Traps"
     option_none = 0
     alias_remove = 0
@@ -210,7 +210,9 @@ class QuestRewardItems(Choice):
     """Quest rewards are not given at time of quest completion and are instead added to the item pool
     none = turn this option off
     all = include all quest rewards in the item pool
-    only_included_regions = include quest rewards in the item pool but remove quests associated with excluded regions (ex. dlc that has been turned off)
+    only_gear = include quest rewards in the item pool but remove rewards that do not include gear (ex. Best Minion Ever only grants money)
+    only_included_regions = include quest rewards in the item pool but remove quests associated with excluded regions (dlc that has been turned off)
+    only_included_regions_gear = combination of only_included_regions and only_gear
     """
     display_name = "Quest Reward Items"
     option_none = 0
@@ -219,8 +221,10 @@ class QuestRewardItems(Choice):
     option_all = 1
     alias_keep = 1
     alias_on = 1
-    option_only_included_regions = 2
-    default = 1
+    option_only_gear = 2
+    option_only_included_regions = 3
+    option_only_included_regions_gear = 4
+    default = 4
 
 # generic_mob_checks
 class GenericMobChecks(Choice):
@@ -242,6 +246,7 @@ class GenericMobChecks(Choice):
     option_10_percent = 10
     default = 5
 
+# TODO: add this option
 # class NamedEnemyChecks(Choice):
 #     """Adds checks into the location pool for killing each named enemies
 #     """
@@ -361,7 +366,7 @@ class RemoveTinaChecks(Choice):
 # remove_torgue_checks
 class RemoveTorgueChecks(Choice):
     """
-    Removes checks and quest rewards associated with Mr. Torgue's Campaign of Carnage DLC
+    Removes checks associated with Mr. Torgue's Campaign of Carnage DLC
     """
     display_name = "Remove Torgue DLC Checks"
     option_keep = 0
@@ -371,7 +376,7 @@ class RemoveTorgueChecks(Choice):
 # remove_scarlett_checks
 class RemoveScarlettChecks(Choice):
     """
-    Removes checks and quest rewards associated with Sir Hammerlock's Big Game Hunt (Oasis) DLC
+    Removes checks associated with Sir Hammerlock's Big Game Hunt (Oasis) DLC
     """
     display_name = "Remove Scarlett DLC Checks"
     option_keep = 0
@@ -381,7 +386,7 @@ class RemoveScarlettChecks(Choice):
 # remove_hammerlock_checks
 class RemoveHammerlockChecks(Choice):
     """
-    Removes checks and quest rewards associated with Sir Hammerlock's Big Game Hunt (Hunter's Grotto) DLC
+    Removes checks associated with Sir Hammerlock's Big Game Hunt (Hunter's Grotto) DLC
     """
     display_name = "Remove Hammerlock DLC Checks"
     option_keep = 0
@@ -391,7 +396,7 @@ class RemoveHammerlockChecks(Choice):
 # remove_digi_peak_checks
 class RemoveDigiPeakChecks(Choice):
     """
-    Removes checks and quest rewards associated with Digistruct Peak DLC
+    Removes checks associated with Digistruct Peak DLC
     """
     display_name = "Remove Digistruct Peak Checks"
     option_keep = 0
@@ -401,8 +406,7 @@ class RemoveDigiPeakChecks(Choice):
 # remove_headhunter_checks
 class RemoveHeadhunterChecks(Choice):
     """
-    Removes checks and quest rewards associated with
-    Hallowed Hollow, Gluttony Gulch, Marcus's Mercenary Shop, Rotgut Distillery and Wam Bam Island
+    Removes checks associated with Hallowed Hollow, Gluttony Gulch, Marcus's Mercenary Shop, Rotgut Distillery and Wam Bam Island
     """
     display_name = "Remove Headhunter Checks"
     option_keep = 0
@@ -439,6 +443,26 @@ class RemoveRaidbossChecks(Choice):
     option_keep = 0
     option_remove = 1
     # maybe options for specific ones in the future.
+    default = 0
+
+
+# max_level_checks
+class MaxLevelChecks(Choice):
+    """
+    Removes checks associated with higher levels. Don't select an arbitrary number, options are listed below.
+    none = don't remove any checks based on this rule
+    level_14 = good for ending around bloodshot ramparts
+    level_20 = good for ending around thousand cuts or level 15 dlcs and headhunters
+    level_30 = removes checks beyond warrior
+    """
+    display_name = "Max Level Checks"
+    option_none = 0
+    alias_keep = 0
+    alias_off = 0
+    alias_uncapped = 0
+    option_level_14 = 14
+    option_level_20 = 20
+    option_level_30 = 30
     default = 0
 
 class DeathLink(Toggle):
@@ -534,6 +558,7 @@ class Borderlands2Options(PerGameCommonOptions):
     remove_specific_region_checks: RemoveSpecificRegionChecks
     remove_coop_checks: RemoveCoopChecks
     remove_raidboss_checks: RemoveRaidbossChecks
+    max_level_checks: MaxLevelChecks
     death_link: DeathLink
     death_link_punishment: DeathLinkPunishment
     death_link_send_mode: DeathLinkSendMode

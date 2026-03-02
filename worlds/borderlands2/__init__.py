@@ -154,7 +154,7 @@ class Borderlands2World(World):
         # goal setup
         goal_name = self.options.goal.value
         self.goal = loc_name_to_id[goal_name] # without base id
-        self.options.exclude_locations.value.add(goal_name)
+        # self.options.exclude_locations.value.add(goal_name)
 
         # TODO: maybe add regions beyond the goal to restricted regions, or we can just expect the yaml to add them to remove_specific_region_checks
         # TODO: add regions to restricted regions if it requires another restricted region
@@ -207,7 +207,7 @@ class Borderlands2World(World):
     def create_items(self) -> None:
         item_pool: List[Borderlands2Item] = []
         item_pool += [self.create_item(name) for name in item_data_table.keys()]  # 1 of everything to start
-        item_pool += [self.create_item("Weapon Slot")]  # 2 total weapon slots
+        item_pool += [self.create_item("Progressive Weapon Slot")]  # 2 total weapon slots
         item_pool += [self.create_item("Progressive Money Cap") for _ in range(7)]  # money cap is 8 stages
         item_pool += [self.create_item("3 Skill Points") for _ in range(7)]  # hit 27 at least
         self.skill_pts_total += 3 * 9 # 1 progressive + 8 filler
@@ -233,6 +233,8 @@ class Borderlands2World(World):
 
         restricted_travel_items = [region_data_table[r].travel_item_name for r in self.restricted_regions]
         new_pool = []
+
+        # reconstruct pool based on options
         for item in item_pool:
             item_data = item_data_table[item.name]
 
@@ -249,9 +251,19 @@ class Borderlands2World(World):
             # skip trap items
             if self.options.spawn_traps.value == 0 and item.name.startswith("Trap Spawn"):
                 continue
-            # skip quest rewards
-            if self.options.quest_reward_items.value == 0 and item.name.startswith("Reward"):
-                continue
+
+            if item.name.startswith("Reward"):
+                # skip quest rewards
+                if self.options.quest_reward_items.value == 0:
+                    continue
+                # skip non-gear quest rewards
+                if self.options.quest_reward_items.value == 2 or self.options.quest_reward_items.value == 4:
+                    if item_data_table[item.name].is_non_gear_reward:
+                        continue
+                # skip quest rewards from restricted regions
+                if self.options.quest_reward_items.value == 3 or self.options.quest_reward_items.value == 4:
+                    if item_data_table[item.name].region in self.restricted_regions:
+                        continue
 
             # skip gear rewards
             if self.options.gear_rarity_item_pool.value != 4:
@@ -268,18 +280,14 @@ class Borderlands2World(World):
             if item.name in restricted_travel_items:
                 continue
 
-            # skip quest rewards from restricted regions
-            if self.options.quest_reward_items.value == 2 and item_data_table[item.name].region in self.restricted_regions:
-                continue
 
             # item should be included
             new_pool.append(item)
 
         item_pool = new_pool
 
-
         # fill leftovers
-        location_count = len(self.multiworld.get_locations(self.player))
+        location_count = len(self.multiworld.get_unfilled_locations(self.player))
         leftover = location_count - len(item_pool)
         # print("Adding Filler Checks: " + str(leftover))
         for _ in range(leftover):
@@ -291,9 +299,6 @@ class Borderlands2World(World):
         loc_dict = {
             location_name: location_id for location_name, location_id in self.location_name_to_id.items()
         }
-
-        # remove goal from locations
-        # loc_dict[goal_name] = None
 
         # remove symbols
         if self.options.vault_symbols.value == 0:
@@ -356,6 +361,22 @@ class Borderlands2World(World):
                 if location_data.is_raidboss:
                     loc_dict[location_name] = None
 
+        # remove checks above max level
+        if self.options.max_level_checks.value != 0:
+            for location_name, location_data in location_data_table.items():
+                if location_data.level > self.options.max_level_checks.value:
+                    loc_dict[location_name] = None
+
+        # remove level checks below override level
+        if "Override Level 15" in self.options.start_inventory.value:
+            for location_name, location_data in location_data_table.items():
+                if location_name.startswith("Level ") and location_data.level <= 15:
+                    loc_dict[location_name] = None
+        if "Override Level 30" in self.options.start_inventory.value:
+            for location_name, location_data in location_data_table.items():
+                if location_name.startswith("Level ") and location_data.level <= 30:
+                    loc_dict[location_name] = None
+
         # create regions
         for name, region_data in region_data_table.items():
             region = Region(name, self.player, self.multiworld)
@@ -386,7 +407,7 @@ class Borderlands2World(World):
             region_name = loc_data.region
             if region_name in self.restricted_regions:
                 continue
-            # TODO also skip if it requires another restricted region 
+            # TODO also skip if it requires another restricted region (but not gear)
             region = self.multiworld.get_region(region_name, self.player)
             region.add_locations({name: addr}, Borderlands2Location)
 
@@ -429,14 +450,16 @@ class Borderlands2World(World):
         # victory_location.place_locked_item(victory_item)
         # victory_region.locations.append(victory_location)
 
+        # setup goal location. place local filler item there. TODO: maybe replace with "Nothing"?
         goal_name = self.options.goal.value
+        self.multiworld.get_location(goal_name, self.player).place_locked_item(self.create_item("$100"))
         self.multiworld.completion_condition[self.player] = lambda state: (
             state.can_reach_location(goal_name, self.player)
         )
 
-        from Utils import visualize_regions
+        # from Utils import visualize_regions
         # print("visualize_regions")
-        visualize_regions(self.multiworld.get_region("Menu", self.player), "my_world.puml")
+        # visualize_regions(self.multiworld.get_region("Menu", self.player), "my_world.puml")
 
     def get_filler_item_name(self) -> str:
         return "$100"
