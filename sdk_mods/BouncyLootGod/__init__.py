@@ -10,15 +10,18 @@ import unrealsdk
 import unrealsdk.unreal as unreal
 from math import sqrt
 from mods_base import build_mod, ButtonOption, SliderOption, get_pc, hook, ENGINE, ObjectFlags
-from ui_utils import show_chat_message, show_hud_message
+from ui_utils import show_chat_message, show_hud_message, OptionBox, OptionBoxButton
 from unrealsdk.hooks import Type, Block, prevent_hooking_direct_calls
+
+
+
 try:
     assert __import__("coroutines").__version_info__ >= (1, 1), "Please install coroutines"
 except (AssertionError, ImportError) as ex:
     import webbrowser
     webbrowser.open("https://bl-sdk.github.io/willow2-mod-db/mods/coroutines/")
     raise ex
-
+from unrealsdk.unreal import WeakPointer
 from coroutines import start_coroutine_tick, WaitForSeconds
 
 import socket
@@ -1668,6 +1671,213 @@ def can_upgrade_skill(self, caller: unreal.UObject, function: unreal.UFunction, 
 #         self.TravelToStation(caller)
 #     return Block
 
+#Archipelago, Vault Hunt Mode
+
+selected_archi_character:str = ""
+
+characters = {
+    "Archi Axton": "GD_Level30Character.Soldier.Profile_Soldier30",
+    "Archi Maya": "GD_Level30Character.Siren.Profile_Siren30",
+    "Archi Salvador": "GD_Level30Character.Mercenary.Profile_Mercenary30",
+    "Archi Zer0": "GD_Level30Character.Assassin.Profile_Assassin30",
+    "Archi Gaige": "GD_Level30Character.Mechromancer.Profile_Mechromancer30",
+    "Archi Krieg": "GD_Level30Character.Psycho.Profile_Psycho30"
+}
+
+new_soldier = unrealsdk.make_struct("PlayerSaveData",
+                                    PlayerClassDefName="Soldier",
+                                    ClassName=f"<font color='#FF6B2A'>Archi Soldier</font>",
+                                    CharacterName="Archi Axton",
+                                    SaveGameFileId=-1,
+                                    )
+
+new_siren = unrealsdk.make_struct("PlayerSaveData",
+                                    PlayerClassDefName="Siren",
+                                    ClassName=f"<font color='#FF6B2A'>Archi Siren</font>",
+                                    CharacterName="Archi Maya",
+                                    SaveGameFileId=-1,
+                                    )
+
+new_mercenary = unrealsdk.make_struct("PlayerSaveData",
+                                    PlayerClassDefName="Mercenary",
+                                    ClassName=f"<font color='#FF6B2A'>Archi Gunzerker</font>",
+                                    CharacterName="Archi Salvador",
+                                    SaveGameFileId=-1,
+                                    )
+
+new_assassin = unrealsdk.make_struct("PlayerSaveData",
+                                    PlayerClassDefName="Assassin",
+                                    ClassName=f"<font color='#FF6B2A'>Archi Assassin</font>",
+                                    CharacterName="Archi Zer0",
+                                    SaveGameFileId=-1,
+                                    )
+
+new_mechromancer = unrealsdk.make_struct("PlayerSaveData",
+                                    PlayerClassDefName="Mechromancer",
+                                    ClassName=f"<font color='#FF6B2A'>Archi Mechromancer</font>",
+                                    CharacterName="Archi Gaige",
+                                    SaveGameFileId=-1,
+                                    )
+
+new_psycho = unrealsdk.make_struct("PlayerSaveData",
+                                    PlayerClassDefName="Psycho",
+                                    ClassName=f"<font color='#FF6B2A'>Archi Psycho</font>",
+                                    CharacterName="Archi Krieg",
+                                    SaveGameFileId=-1,
+                                    )
+
+pt_data = unrealsdk.make_struct("MissionPlaythroughSaveGameData",
+                                MissionData = [
+                                    #My First Gun
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode01.M_Ep1_Champion"),
+                                                          status = 4, ObjectivesProgress = [1], ActiveObjectiveSet = unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode01.M_Ep1_Champion:OpenLockerSet"),
+                                                          SubObjectiveSets = [], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Blindsided
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode02.M_Ep2_Henchman"),
+                                                          status = 4, ObjectivesProgress = [1,1,1,1,1,1,0,1,1], ActiveObjectiveSet = unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode02.M_Ep2_Henchman:WeaponEquippedSet"),
+                                                          SubObjectiveSets = [], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Cleaning Up the Berg
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode02.M_Ep2a_MoreGuns"),
+                                                          status = 4, ObjectivesProgress = [0,1,1,1,1,1,1], ActiveObjectiveSet = unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode02.M_Ep2a_MoreGuns:WaitForPowerSet2"),
+                                                          SubObjectiveSets = [], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Best Minion Ever
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode02.M_Ep2c_Henchman"),
+                                                          status = 4, ObjectivesProgress = [1,1,0,1,1,1,0,1,1,1,1,1,1,1], ActiveObjectiveSet = unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode02.M_Ep2c_Henchman:BoardClaptrapsBoatSet"),
+                                                          SubObjectiveSets = [], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Road to Sanctuary
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode03.M_Ep3_CatchARide"),
+                                                          status = 4, ObjectivesProgress = [1,1,1,1,1,1,1,3,1,20,1,1,1,1], ActiveObjectiveSet = unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode03.M_Ep3_CatchARide:InstallPowerSupplySet"),
+                                                          SubObjectiveSets = [], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Plan B
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode04.M_Ep4_WelcomeToSanctuary"),
+                                                          status = 4, ObjectivesProgress = [1,1,3,1,1,0,1,1,1,1,1,1], ActiveObjectiveSet = unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode04.M_Ep4_WelcomeToSanctuary:UnlockRolandHQSet"),
+                                                          SubObjectiveSets=[], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Hunting the Firehawk
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode05.M_Ep5_ThePhoenix"),
+                                                          status = 4, ObjectivesProgress = [1,1,7,1,1,1,1,1,1,1], ActiveObjectiveSet = unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode05.M_Ep5_ThePhoenix:LastWaveGiveEridiumSet"),
+                                                          SubObjectiveSets=[], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Dam Fine Rescue
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode06.M_Ep6_RescueRoland"),
+                                                          status=4, ObjectivesProgress = [1,1,1,1,1,1,5,1,1,1,1,1,1,1,1,1,0,0,0], ActiveObjectiveSet = unrealsdk.find_object("MissionObjectiveSetDefinition","GD_Episode06.M_Ep6_RescueRoland:DestroyAllLoadersSet2"),
+                                                          SubObjectiveSets=[], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Train to Catch
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode07.M_Ep7_ATrainToCatch"),
+                                                          status=4, ObjectivesProgress=[1,1,1,0,3,1,1,3,1,0,3,3,3,1,1,1,1,1,1], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode07.M_Ep7_ATrainToCatch:GetBackToSanctuarySet"),
+                                                          SubObjectiveSets=[], GameStage = 1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Rising Action
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode08.M_Ep8_SanctuaryTakesOff"),
+                                                          status=4, ObjectivesProgress=[1,1,1,1,1,1,481,1,1,1,1], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode08.M_Ep8_SanctuaryTakesOff:GoToFridgeEntranceSet"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Bright Lights Flying City
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode09.M_Ep9_GetBackToSanctuary"),
+                                                          status=4, ObjectivesProgress=[1,1,1,1,1,1,1,1,0,1,1,1,1,0], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition","GD_Episode09.M_Ep9_GetBackToSanctuary:FriendsFoundSet"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Wildlife Preservation
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode10.M_Ep10_BirdISTheWord"),
+                                                          status=4, ObjectivesProgress=[1,1,1,1,0,3,1,10,1,0,1], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode10.M_Ep10_BirdISTheWord:DeliverUpgradeClaptrapSet"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Once & Future Slab
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode11.M_Ep11_LikeATonOf"),
+                                                          status=4, ObjectivesProgress=[1,1,1,1,1,1,3], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode11.M_Ep11_LikeATonOf:FollowBrickToExitSet"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Man Who Would Be Jack
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode12.M_Ep12_BecomingJack"),
+                                                          status=4, ObjectivesProgress=[1,1,1,1,15,1,1], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode12.M_Ep12_BecomingJack:RetrievePasswordSet"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Where Angels Fear to Tread
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode13.M_Ep13_KillAngel"),
+                                                          status=4, ObjectivesProgress=[1,1,0,1,1,1,1,1,11,1,3], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode13.M_Ep13_KillAngel:AngelDyingSet"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Part 2
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode14.M_Ep14_SearchingTheWreckage"),
+                                                          status=4, ObjectivesProgress=[1], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode14.M_Ep14_SearchingTheWreckage:Chest04OpenedSet"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Data Mining
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode15.M_Ep15_CharacterAssassination"),
+                                                          status=4, ObjectivesProgress=[1,1,1,3,1,33,1,3,1,1,1,1,1,1], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode15.M_Ep15_CharacterAssassination:ReturntoClaptrapSet"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                    #Toil & Trouble
+                                    unrealsdk.make_struct("MissionStatusPlayerData",MissionDef=unrealsdk.find_object("MissionDefinition", "GD_Episode16.M_Ep16_LockAndLoad"),
+                                                          status=4, ObjectivesProgress=[1,1,1,1,1,4,1,1,1,1,1,1,1,5,15], ActiveObjectiveSet=unrealsdk.find_object("MissionObjectiveSetDefinition", "GD_Episode16.M_Ep16_LockAndLoad:GoToAridNexusSet2"),
+                                                          SubObjectiveSets=[], GameStage=1, bNeedsRewards = False, bHeardKickoff = True),
+                                ],
+                                UnloadableDlcMissionData=[],
+                                PendingMissionRewards=[],
+                                UnloadableDlcPendingMissionRewards=[],
+                                ActiveMission="GD_Episode17.M_Ep17_KillJack",
+                                FilteredMissions=[],
+                                )
+frontend_movie = WeakPointer()
+def load_archi_character(box, selected_button):
+    if selected_button.name == "Cancel":
+        return
+
+    sample_save = unrealsdk.find_object("PlayerSaveGame", characters[selected_archi_character])
+    new_save = unrealsdk.construct_object("PlayerSaveGame", sample_save, template_obj=sample_save)
+
+    new_save.ExpLevel = 28
+    new_save.ExpPoints = 676325
+    new_save.GeneralSkillPoints = 26
+    new_save.PlaythroughsCompleted = 0
+    new_save.CurrencyOnHand = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    new_save.BlackMarketUpgrades = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    new_save.InventorySlotData = unrealsdk.make_struct("InventorySlotSaveGameData", InventorySlotMax_Misc=12,
+                                                  WeaponReadyMax=2, NumQuickSlotsFlourished=2)
+    new_save.UIPreferences.CharacterName = selected_archi_character
+
+    get_pc().GetWillowGlobals().GetWillowSaveGameManager().SetCachedPlayerSaveGame(0, new_save)
+    get_pc().LoadCachedSaveGame()
+
+    frontend = frontend_movie()
+    dlg = unrealsdk.construct_object("WillowGFxDialogBox", get_pc())
+    dlg.DialogResult = 'Dif2'
+    frontend.OnChoosePlaythrough_Click(dlg, 0)  # type:ignore
+
+
+#many functions utilized by Yeti, seen in the mod at https://bl-sdk.github.io/willow2-mod-db/mods/boostedtpscharacters/
+@hook("WillowGame.WillowGFxLobbyLoadCharacter:OnSlotClicked", Type.PRE)
+def OnSlotClicked(obj, args, ret, func):
+    selected_item = obj.DisplayedCharacterDataList[args.SlotIndex + obj.TopSlotDataIndex]
+    if not selected_item.SaveDataId == -1:
+        return
+
+    if selected_item.CharName in characters.keys():
+        global selected_archi_character
+        selected_archi_character = selected_item.CharName
+        archi_character_box.show()
+        return Block
+
+@hook('WillowGame.WillowSaveGameManager:EndGetSaveGameDataFromList', Type.PRE)
+def append_archi_saves(obj, args, ret, func):
+    with prevent_hooking_direct_calls():
+        save_data_list:list = func(args)
+
+        for char in [new_soldier,new_siren,new_mercenary,new_assassin,new_mechromancer,new_psycho]:
+            save_data_list.append(char)
+
+        return Block, save_data_list
+
+@hook("WillowGame.FrontendGFxMovie:Start", Type.POST)
+def FrontendGFxMovie(obj, args, ret, func):
+    global frontend_movie
+    frontend_movie = WeakPointer(obj)
+    return
+
+archi_character_button_confirm = OptionBoxButton(
+    name = "Confirm"
+)
+
+archi_character_button_cancel = OptionBoxButton(
+    name = "Cancel"
+)
+
+archi_character_box = OptionBox(
+    title="Archi Character",
+    message=f"You are about to load a saved archi character, continue?",
+    buttons=[archi_character_button_confirm,archi_character_button_cancel],
+    on_select=load_archi_character
+)
+
 @hook("WillowGame.TextChatGFxMovie:AddChatMessage")
 def add_chat_message(self, caller: unreal.UObject, function: unreal.UFunction, params: unreal.WrappedStruct):
     msg = caller.msg[0:2].lower() + caller.msg[2:]
@@ -1739,6 +1949,9 @@ mod_instance = build_mod(
         black_market_buy_item,
         current_level_is_below_max,
         post_add_to_backpack,
+        FrontendGFxMovie,
+        append_archi_saves,
+        OnSlotClicked
     ]
 )
 
